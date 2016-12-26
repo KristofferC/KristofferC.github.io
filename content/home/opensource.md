@@ -27,6 +27,9 @@ Here are some of the open source projects I have created or been involved with:
 * [TimerOutputs.jl](https://github.com/KristofferC/TimerOutputs.jl) -- Formatted output of timed sections.
 * [BlockArrays.jl](https://github.com/KristofferC/BlockArrays.jl) -- Interface for blocked arrays.
 * [MMA.jl](https://github.com/KristofferC/MMA.jl) -- The "Method of Moving Asymptotes"-algorithm.
+* [Distances.jl](https://github.com/JuliaStats/Distances.jl) -- A Julia package for evaluating distances(metrics) between vectors.
+* [NLsolve.jl](https://github.com/EconForge/NLsolve.jl) -- Julia solvers for systems of nonlinear equations and mixed complementarity problems
+
 
 ## Python
 
