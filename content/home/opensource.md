@@ -32,3 +32,7 @@ Here are some of the open sorce projects I have created or been involved with:
 
 * [Phon](https://github.com/KristofferC/Phon) -- Insert cohesive elements between grains in microstructures.
 * [FeynSimul](https://github.com/KristofferC/FeynSimul) -- Path Integral simulations using Python OpenCL for computations on GPUs.
+
+## Talks
+
+{{< youtube 30TUEhbGmuc >}}
