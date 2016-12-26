@@ -14,7 +14,7 @@ weight = 50
 
 +++
 
-Here are some of the open sorce projects I have created or been involved with:
+Here are some of the open source projects I have created or been involved with:
 
 ## Julia
 
