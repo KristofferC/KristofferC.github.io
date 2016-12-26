@@ -12,10 +12,10 @@
     
     <item>
       <title>Case study: Improving performance of a code written in Matlab style</title>
-      <link>http://kristofferc.github.io/post/perf_vectorize/</link>
+      <link>http://kristofferc.github.io/post/vectorization_performance_study/</link>
       <pubDate>Mon, 26 Dec 2016 15:00:00 +0000</pubDate>
       
-      <guid>http://kristofferc.github.io/post/perf_vectorize/</guid>
+      <guid>http://kristofferc.github.io/post/vectorization_performance_study/</guid>
       <description>
 
 &lt;h2 id=&#34;introduction&#34;&gt;Introduction&lt;/h2&gt;
