@@ -2,13 +2,12 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Publications on Kristoffer Carlsson</title>
-    <link>http://kristofferc.github.io/publication/index.xml</link>
+    <link>http://KristofferC.github.io/publication/</link>
     <description>Recent content in Publications on Kristoffer Carlsson</description>
     <generator>Hugo -- gohugo.io</generator>
-    <language>en-us</language>
     <copyright>&amp;copy; 2016 Kristoffer Carlsson</copyright>
     <lastBuildDate>Tue, 01 Sep 2015 00:00:00 +0000</lastBuildDate>
-    <atom:link href="/publication/index.xml" rel="self" type="application/rss+xml" />
+    <atom:link href="http://KristofferC.github.io/publication/index.xml" rel="self" type="application/rss+xml" />
     
     <item>
       <title>A Person Re-Identification System For Mobile Devices</title>

@@ -2,13 +2,12 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Projects on Kristoffer Carlsson</title>
-    <link>http://kristofferc.github.io/projects/index.xml</link>
+    <link>http://KristofferC.github.io/projects/</link>
     <description>Recent content in Projects on Kristoffer Carlsson</description>
     <generator>Hugo -- gohugo.io</generator>
-    <language>en-us</language>
     <copyright>&amp;copy; 2016 Kristoffer Carlsson</copyright>
     <lastBuildDate>Wed, 27 Apr 2016 00:00:00 +0000</lastBuildDate>
-    <atom:link href="/projects/index.xml" rel="self" type="application/rss+xml" />
+    <atom:link href="http://KristofferC.github.io/projects/index.xml" rel="self" type="application/rss+xml" />
     
     <item>
       <title>Deep Learning</title>
