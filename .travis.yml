@@ -9,6 +9,9 @@ branches:
   only:
     - sources # replace by master for Project Pages
 
+notifications:
+  email: false
+
 install:
   - rm -rf public || exit 0 # cleanup previous run
 script:
