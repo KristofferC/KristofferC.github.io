@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  
+  <url>
+    <loc>http://kristofferc.github.io/home/posts/</loc>
+    <lastmod>2016-04-20T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://kristofferc.github.io/home/opensource/</loc>
+    <lastmod>2016-04-20T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://kristofferc.github.io/home/teaching/</loc>
+    <lastmod>2016-04-20T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://kristofferc.github.io/home/contact/</loc>
+    <lastmod>2016-04-20T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://kristofferc.github.io/post/perf_vectorize/</loc>
+    <lastmod>2016-12-26T15:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://kristofferc.github.io/projects/deep-learning/</loc>
+    <lastmod>2016-04-27T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://kristofferc.github.io/projects/example-external-project/</loc>
+    <lastmod>2016-04-27T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://kristofferc.github.io/home/about/</loc>
+    <lastmod>2016-04-20T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://kristofferc.github.io/publication/person-re-identification/</loc>
+    <lastmod>2015-09-01T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://kristofferc.github.io/publication/clothing-search/</loc>
+    <lastmod>2013-07-01T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://kristofferc.github.io/tags/deep-learning/</loc>
+    <lastmod>2016-04-27T00:00:00+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://kristofferc.github.io/tags/demo/</loc>
+    <lastmod>2016-04-27T00:00:00+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://kristofferc.github.io/home/</loc>
+    <lastmod>2016-04-20T00:00:00+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://kristofferc.github.io/tags/julia/</loc>
+    <lastmod>2016-12-26T15:00:00+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://kristofferc.github.io/</loc>
+    <lastmod>2016-04-20T00:00:00+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://kristofferc.github.io/tags/loops/</loc>
+    <lastmod>2016-12-26T15:00:00+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://kristofferc.github.io/tags/performance/</loc>
+    <lastmod>2016-12-26T15:00:00+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://kristofferc.github.io/post/</loc>
+    <lastmod>2016-12-26T15:00:00+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://kristofferc.github.io/projects/</loc>
+    <lastmod>2016-04-27T00:00:00+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://kristofferc.github.io/publication/</loc>
+    <lastmod>2015-09-01T00:00:00+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://kristofferc.github.io/tags/</loc>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://kristofferc.github.io/tags/vectorization/</loc>
+    <lastmod>2016-12-26T15:00:00+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+</urlset>

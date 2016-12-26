@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Julia on Kristoffer Carlsson</title>
+    <link>http://kristofferc.github.io/tags/julia/index.xml</link>
+    <description>Recent content in Julia on Kristoffer Carlsson</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <copyright>&amp;copy; 2016 Kristoffer Carlsson</copyright>
+    <atom:link href="/tags/julia/index.xml" rel="self" type="application/rss+xml" />
+    
+    <item>
+      <title>Case study: Improving performance of a code written in Matlab style</title>
+      <link>http://kristofferc.github.io/post/perf_vectorize/</link>
+      <pubDate>Mon, 26 Dec 2016 15:00:00 +0000</pubDate>
+      
+      <guid>http://kristofferc.github.io/post/perf_vectorize/</guid>
+      <description>
+
+&lt;h2 id=&#34;introduction&#34;&gt;Introduction&lt;/h2&gt;
+
+&lt;p&gt;A few weeks ago, someone asked on the &lt;a href=&#34;https://discourse.julialang.org/t/elementwise-array-operations-and-performance/754&#34; target=&#34;_blank&#34;&gt;Julia Discourse forum&lt;/a&gt; for assistance how to make their code a bit faster.&lt;/p&gt;
+
+&lt;p&gt;The original code posted was (with a few minor modifications)&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;function myImg(pts::Integer)
+    # rotation of ellipse
+    aEll = 35.0/180.0*pi
+    axes = [1/6,1/25]
+    values = collect(linspace(-0.5,0.5,pts))
+
+    # meshes
+    gridX = [i for i in values, j in values]
+    gridY = [j for i in values, j in values]
+
+    # generate ellipse
+    # rotate by alpha
+    Xr = cos(aEll).*gridX - sin(aEll).*gridY
+    Yr = cos(aEll).*gridY + sin(aEll).*gridX
+    img = ((1/axes[1]*Xr.^2 + 1/axes[2]*Yr.^2).&amp;lt;=1).*( 10*pi*Yr);
+    return mod(img-pi,2*pi)+pi
+end
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;I did not spend too much time trying to figure out the purpose of the code but it looks like it is creating some sort of rotated ellipse.
+Plotting a heatmap of the resulting matrix confirms this:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;julia&amp;gt; using Plots
+
+julia&amp;gt; img = myImg(1024)
+
+julia&amp;gt; heatmap(img)
+&lt;/code&gt;&lt;/pre&gt;
+
+
+&lt;figure &gt;
+    
+        &lt;img src=&#34;http://KristofferC.github.io/img/ellipses.png&#34; /&gt;
+    
+    
+&lt;/figure&gt;
+
+
+&lt;h2 id=&#34;analysis&#34;&gt;Analysis&lt;/h2&gt;
+
+&lt;p&gt;To get an estimate of the time and memory allocation it takes to run the function we can use the &lt;code&gt;@time&lt;/code&gt; macro.&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:1&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;
+As to not measure compilation overhead, we time the function twice (here using Julia v0.5) and get&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-julia&#34;&gt;julia&amp;gt; @time myImg(1024);
+  0.117500 seconds (845 allocations: 144.179 MB, 50.45% gc time)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;The first thing to do when trying to improve performance of Julia code is to check if there are any type instabilities (see &lt;a href=&#34;http://www.johnmyleswhite.com/notebook/2013/12/06/writing-type-stable-code-in-julia/&#34; target=&#34;_blank&#34;&gt;here&lt;/a&gt; and &lt;a href=&#34;http://docs.julialang.org/en/release-0.5/manual/performance-tips/#measure-performance-with-time-and-pay-attention-to-memory-allocation&#34; target=&#34;_blank&#34;&gt;here&lt;/a&gt; for references) in performance sensitive parts of the code.
+Julia provides a macro called  &lt;code&gt;@code_warntype&lt;/code&gt; which gives colored output where type instabilities are shown in red.
+Running &lt;code&gt;@code_warntype myImg(1024)&lt;/code&gt; shows, however, that this function is perfectly fine from a type stability point of view.&lt;/p&gt;
+
+&lt;p&gt;From the &lt;code&gt;@time&lt;/code&gt; output, we see that a lot of the time (~50%) is spent in the garbage collector (GC).
+This indicates that we are allocating a lot of memory that needs to get cleaned up by the GC.
+Our initial goal should thus first be to reduce the amount of memory allocations.&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:2&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:2&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+
+&lt;p&gt;Looking at the code we can see that the first non trivial memory allocation is the line&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;values = collect(linspace(-0.5,0.5,pts))
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;The function &lt;code&gt;linspace&lt;/code&gt; returns an iterator which is here &lt;code&gt;collect&lt;/code&gt;ed into a &lt;code&gt;Vector&lt;/code&gt;. While in this case, this memory allocation is non significant, it is good practice to not
+allocate memory unnecessarily. Since we never directly index the &lt;code&gt;values&lt;/code&gt; variable, it is fine to keep it as an iterator. We thus replace the line with&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;values = linspace(-0.5, 0.5, pts)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Next, we create two matrices in a typical &amp;ldquo;meshgrid&amp;rdquo; style:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;gridX = [i for i in values, j in values]
+gridY = [j for i in values, j in values]
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Often, creating a mesh grid like this is quite wasteful in terms of memory because we are here storing &lt;code&gt;pts&lt;/code&gt; amount of data in &lt;code&gt;2*pts^2&lt;/code&gt; amount of memory.
+Later, we then use these matrices to do operations in an &amp;ldquo;vectorized&amp;rdquo; fashion:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;Xr = cos(aEll).*gridX - sin(aEll).*gridY
+Yr = cos(aEll).*gridY + sin(aEll).*gridX
+img = ((1/axes[1]*Xr.^2 + 1/axes[2]*Yr.^2).&amp;lt;=1).*( 10*pi*Yr);
+return mod(img-pi,2*pi)+pi
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;This is where the problem with memory allocations sits. For example the command &lt;code&gt;cos(aEll).*gridX&lt;/code&gt; has to allocate a &lt;em&gt;brand new&lt;/em&gt; matrix to store the result in.
+And then again allocate a new matrix for the &lt;code&gt;sin&lt;/code&gt; part. And then a new matrix for the subtraction between the two matrices etc.
+It is evident that there are a lot of new matrices being created here.&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:3&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:3&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;
+Code like this is quite common from users coming from a MATLAB programming background, since for loops have traditionally been quite slow there.
+In addition to the overhead of allocating memory, this also has the effect that the computer is working with &amp;ldquo;cold&amp;rdquo; memory (memory not in cache) a lot.
+For good performance, it is important to try to do as much operations as possible on the data while it is in cache before loading new data.&lt;/p&gt;
+
+&lt;p&gt;The remedy to the memory and cache problem is to attack the problem from a different dimension.
+Instead of building up the result by doing quite small operations array by array, we do it element by element.&lt;/p&gt;
+
+&lt;p&gt;My proposed rewrite of the function is:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;function myImg2(pts::Integer)
+  # rotation of ellipse
+  aEll = 35.0/180.0*pi
+  axes_inv = [6.0, 25.0]
+  values = linspace(-0.5,0.5,pts)
+
+  img = zeros(Float64, pts, pts)
+  cosa = cos(aEll)
+  sina = sin(aEll)
+  @inbounds @fastmath for j in eachindex(values), i in eachindex(values)
+      Xr = cosa*values[i] - sina*values[j]
+      Yr = cosa*values[j] + sina*values[i]
+      v = (axes_inv[1]*Xr^2 + axes_inv[2]*Yr^2)
+      k = v &amp;lt;= 1 ? 10*pi*Yr : 0.0
+      img[i,j] = mod(k-pi,2*pi)+pi
+    end
+  return img
+end
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;The &amp;ldquo;meshgrid&amp;rdquo; variables &lt;code&gt;gridX&lt;/code&gt; and &lt;code&gt;gridY&lt;/code&gt; are gone and instead we do a nested loop that completely computes the result stored in &lt;code&gt;img[i,j]&lt;/code&gt;.
+Timing the new function results in&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;julia&amp;gt; @time myImg2(1024);
+  0.012674 seconds (7 allocations: 8.000 MB)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;which is a speed up of about 10x and a reduction of memory use by almost 20x without (I would say) making the code much more complicated to read and understand.&lt;/p&gt;
+
+&lt;h2 id=&#34;conclusions&#34;&gt;Conclusions&lt;/h2&gt;
+
+&lt;p&gt;Rewriting code that is written in a &amp;ldquo;vectorized&amp;rdquo; form can sometimes be beneficial if you see that the code is allocating a lot of memory and the time spent garbage collecting is significant.&lt;/p&gt;
+&lt;div class=&#34;footnotes&#34;&gt;
+
+&lt;hr /&gt;
+
+&lt;ol&gt;
+&lt;li id=&#34;fn:1&#34;&gt;Instead of using the &lt;code&gt;@time&lt;/code&gt; macro it is often better to use a dedicated benchmark framework like &lt;a href=&#34;https://github.com/JuliaCI/BenchmarkTools.jl&#34; target=&#34;_blank&#34;&gt;BenchmarkTools.jl&lt;/a&gt;. However, the run time of the function is here quite large so the &lt;code&gt;@time&lt;/code&gt; macro is ok to use.
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:1&#34;&gt;&lt;sup&gt;^&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:2&#34;&gt;Typically, it is always good to get in the habit of profiling code before trying to optimize it. &amp;ldquo;Measuring gives you a leg up on experts who don&amp;rsquo;t need to measure&amp;rdquo; &amp;ndash; Walter Bright. Julia has a macro &lt;code&gt;@profile&lt;/code&gt; that together with the package &lt;a href=&#34;https://github.com/timholy/ProfileView.jl&#34; target=&#34;_blank&#34;&gt;ProfileView.jl&lt;/a&gt; gives a flame graph overview of where time is spent. However, when there are glaring performance bottle necks, I typically fix those first before profiling.
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:2&#34;&gt;&lt;sup&gt;^&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:3&#34;&gt;Julia 0.6 comes with a cool feature where chained calls to dotted operators (like &lt;code&gt;.+&lt;/code&gt;) are fused. As an example, in 0.6, the command &lt;code&gt;cos(aEll).*gridX .- sin(aEll).*gridY&lt;/code&gt; would only allocate one array instead of three, as in 0.5.
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:3&#34;&gt;&lt;sup&gt;^&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+</description>
+    </item>
+    
+  </channel>
+</rss>
