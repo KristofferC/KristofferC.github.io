@@ -85,7 +85,7 @@ gridY = [j for i in values, j in values]
 &lt;/code&gt;&lt;/pre&gt;
 
 &lt;p&gt;Often, creating a mesh grid like this is quite wasteful in terms of memory because we are here storing &lt;code&gt;pts&lt;/code&gt; amount of data in &lt;code&gt;2*pts^2&lt;/code&gt; amount of memory.
-Later, we then use these matrices to do operations in an &amp;ldquo;vectorized&amp;rdquo; fashion:&lt;/p&gt;
+Later, these matrices are used to do operations in an &amp;ldquo;vectorized&amp;rdquo; fashion:&lt;/p&gt;
 
 &lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;Xr = cos(aEll).*gridX - sin(aEll).*gridY
 Yr = cos(aEll).*gridY + sin(aEll).*gridX
@@ -100,8 +100,8 @@ Code like this is quite common from users coming from a MATLAB programming backg
 In addition to the overhead of allocating memory, this also has the effect that the computer is working with &amp;ldquo;cold&amp;rdquo; memory (memory not in cache) a lot.
 For good performance, it is important to try to do as much operations as possible on the data while it is in cache before loading new data.&lt;/p&gt;
 
-&lt;p&gt;The remedy to the memory and cache problem is to attack the problem from a different dimension.
-Instead of building up the result by doing quite small operations array by array, we do it element by element.&lt;/p&gt;
+&lt;p&gt;The remedy to the memory and cache problem is to attack the problem along a different dimension.
+Instead of building up the full result array by doing small operations array by array, it is built up element by element.&lt;/p&gt;
 
 &lt;p&gt;My proposed rewrite of the function is:&lt;/p&gt;
 
