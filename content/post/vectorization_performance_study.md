@@ -5,7 +5,7 @@ tags = ["performance", "vectorization", "loops", "julia"]
 title = "Case study: Improving performance of a code written in Matlab style"
 math = true
 summary = """
-We look at a small code snippet that was posted on the Julia discourse mailing list and make it 10 times faster.
+Analysis and optimization of a small code snippet posted on the Julia discourse mailing list.
 """
 +++
 
@@ -52,7 +52,7 @@ julia> heatmap(img)
 ## Analysis
 
 To get an estimate of the time and memory allocation it takes to run the function we can use the `@time` macro.[^1]
-As to not measure compilation overhead, we time the function twice (here using Julia v0.5) and get
+As to not measure compilation overhead, the function is timed twice (here using Julia v0.5).
 
 [^1]: Instead of using the `@time` macro it is often better to use a dedicated benchmark framework like [BenchmarkTools.jl](https://github.com/JuliaCI/BenchmarkTools.jl). However, the run time of the function is here quite large so the `@time` macro is ok to use.
 
@@ -65,26 +65,13 @@ The first thing to do when trying to improve performance of Julia code is to che
 Julia provides a macro called  `@code_warntype` which gives colored output where type instabilities are shown in red.
 Running `@code_warntype myImg(1024)` shows, however, that this function is perfectly fine from a type stability point of view.
 
-From the `@time` output, we see that a lot of the time (~50%) is spent in the garbage collector (GC).
-This indicates that we are allocating a lot of memory that needs to get cleaned up by the GC.
-Our initial goal should thus first be to reduce the amount of memory allocations.[^2]
+The `@time` output, shows a significant amount of time (~50%) is spent in the garbage collector (GC).
+This indicates that large amounts of memory is being allocated and released and thus needs to be garbage collected.
+The initial goal should thus first be to reduce the amount of memory allocations.[^2]
 
 [^2]: Typically, it is always good to get in the habit of profiling code before trying to optimize it. "Measuring gives you a leg up on experts who don't need to measure" -- Walter Bright. Julia has a macro `@profile` that together with the package [ProfileView.jl](https://github.com/timholy/ProfileView.jl) gives a flame graph overview of where time is spent. However, when there are glaring performance bottle necks, I typically fix those first before profiling.
 
-Looking at the code we can see that the first non trivial memory allocation is the line
-
-```jl
-values = collect(linspace(-0.5,0.5,pts))
-```
-
-The function `linspace` returns an iterator which is here `collect`ed into a `Vector`. While in this case, this memory allocation is non significant, it is good practice to not
-allocate memory unnecessarily. Since we never directly index the `values` variable, it is fine to keep it as an iterator. We thus replace the line with
-
-```jl
-values = linspace(-0.5, 0.5, pts)
-```
-
-Next, we create two matrices in a typical "meshgrid" style:
+The most significant memory allocations start with the "mesh grid" type of variables `gridX` and `gridY` which are created as
 
 ```jl
 gridX = [i for i in values, j in values]
@@ -92,7 +79,7 @@ gridY = [j for i in values, j in values]
 ```
 
 Often, creating a mesh grid like this is quite wasteful in terms of memory because we are here storing `pts` amount of data in `2*pts^2` amount of memory.
-Later, we then use these matrices to do operations in an "vectorized" fashion:
+Later, these matrices are used to do operations in an "vectorized" fashion:
 
 ```jl
 Xr = cos(aEll).*gridX - sin(aEll).*gridY
@@ -112,8 +99,8 @@ For good performance, it is important to try to do as much operations as possibl
 [^3]: Julia 0.6 comes with a cool feature where chained calls to dotted operators (like `.+`) are fused. As an example, in 0.6, the command `cos(aEll).*gridX .- sin(aEll).*gridY` would only allocate one array instead of three, as in 0.5.
 
 
-The remedy to the memory and cache problem is to attack the problem from a different dimension.
-Instead of building up the result by doing quite small operations array by array, we do it element by element.
+The remedy to the memory and cache problem is to attack the problem along a different dimension.
+Instead of building up the full result array by doing small operations array by array, it is built up element by element.
 
 My proposed rewrite of the function is:
 
@@ -122,7 +109,7 @@ function myImg2(pts::Integer)
   # rotation of ellipse
   aEll = 35.0/180.0*pi
   axes_inv = [6.0, 25.0]
-  values = linspace(-0.5,0.5,pts)
+  values = collect(linspace(-0.5,0.5,pts))
 
   img = zeros(Float64, pts, pts)
   cosa = cos(aEll)
@@ -138,12 +125,12 @@ function myImg2(pts::Integer)
 end
 ```
 
-The "meshgrid" variables `gridX` and `gridY` are gone and instead we do a nested loop that completely computes the result stored in `img[i,j]`.
+The "meshgrid" variables `gridX` and `gridY` are gone and instead, a nested loop completely computes the result for each element and stores it in `img[i,j]`.
 Timing the new function results in
 
 ```
 julia> @time myImg2(1024);
-  0.012674 seconds (7 allocations: 8.000 MB)
+  0.011171 seconds (9 allocations: 8.008 MB)
 ```
 
 which is a speed up of about 10x and a reduction of memory use by almost 20x without (I would say) making the code much more complicated to read and understand.
@@ -153,8 +140,6 @@ which is a speed up of about 10x and a reduction of memory use by almost 20x wit
 Rewriting code that is written in a "vectorized" form can sometimes be beneficial if you see that the code is allocating a lot of memory and the time spent garbage collecting is significant.
 
 
+## Edits:
 
-
-
-
-
+Removed a section that suggested taking away `collect` from the `values` variable. Since we are indexing directly into `values` it turns out that using an iterator is slightly slower (10%) than using a `Vector`. Thanks to [Simon Danisch](https://github.com/SimonDanisch)
