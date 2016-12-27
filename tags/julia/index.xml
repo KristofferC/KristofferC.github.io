@@ -64,7 +64,7 @@ julia&amp;gt; heatmap(img)
 &lt;h2 id=&#34;analysis&#34;&gt;Analysis&lt;/h2&gt;
 
 &lt;p&gt;To get an estimate of the time and memory allocation it takes to run the function we can use the &lt;code&gt;@time&lt;/code&gt; macro.&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:1&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;
-As to not measure compilation overhead, we time the function twice (here using Julia v0.5) and get&lt;/p&gt;
+As to not measure compilation overhead, the function is timed twice (here using Julia v0.5).&lt;/p&gt;
 
 &lt;pre&gt;&lt;code class=&#34;language-julia&#34;&gt;julia&amp;gt; @time myImg(1024);
   0.117500 seconds (845 allocations: 144.179 MB, 50.45% gc time)
@@ -74,22 +74,11 @@ As to not measure compilation overhead, we time the function twice (here using J
 Julia provides a macro called  &lt;code&gt;@code_warntype&lt;/code&gt; which gives colored output where type instabilities are shown in red.
 Running &lt;code&gt;@code_warntype myImg(1024)&lt;/code&gt; shows, however, that this function is perfectly fine from a type stability point of view.&lt;/p&gt;
 
-&lt;p&gt;From the &lt;code&gt;@time&lt;/code&gt; output, we see that a lot of the time (~50%) is spent in the garbage collector (GC).
-This indicates that we are allocating a lot of memory that needs to get cleaned up by the GC.
-Our initial goal should thus first be to reduce the amount of memory allocations.&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:2&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:2&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;p&gt;The &lt;code&gt;@time&lt;/code&gt; output, shows a significant amount of time (~50%) is spent in the garbage collector (GC).
+This indicates that large amounts of memory is being allocated and released and thus needs to be garbage collected.
+The initial goal should thus first be to reduce the amount of memory allocations.&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:2&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:2&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
 
-&lt;p&gt;Looking at the code we can see that the first non trivial memory allocation is the line&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;values = collect(linspace(-0.5,0.5,pts))
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;The function &lt;code&gt;linspace&lt;/code&gt; returns an iterator which is here &lt;code&gt;collect&lt;/code&gt;ed into a &lt;code&gt;Vector&lt;/code&gt;. While in this case, this memory allocation is non significant, it is good practice to not
-allocate memory unnecessarily. Since we never directly index the &lt;code&gt;values&lt;/code&gt; variable, it is fine to keep it as an iterator. We thus replace the line with&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;values = linspace(-0.5, 0.5, pts)
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;Next, we create two matrices in a typical &amp;ldquo;meshgrid&amp;rdquo; style:&lt;/p&gt;
+&lt;p&gt;The most significant memory allocations start with the &amp;ldquo;mesh grid&amp;rdquo; type of variables &lt;code&gt;gridX&lt;/code&gt; and &lt;code&gt;gridY&lt;/code&gt; which are created as&lt;/p&gt;
 
 &lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;gridX = [i for i in values, j in values]
 gridY = [j for i in values, j in values]
@@ -120,7 +109,7 @@ Instead of building up the result by doing quite small operations array by array
   # rotation of ellipse
   aEll = 35.0/180.0*pi
   axes_inv = [6.0, 25.0]
-  values = linspace(-0.5,0.5,pts)
+  values = collect(linspace(-0.5,0.5,pts))
 
   img = zeros(Float64, pts, pts)
   cosa = cos(aEll)
@@ -136,11 +125,11 @@ Instead of building up the result by doing quite small operations array by array
 end
 &lt;/code&gt;&lt;/pre&gt;
 
-&lt;p&gt;The &amp;ldquo;meshgrid&amp;rdquo; variables &lt;code&gt;gridX&lt;/code&gt; and &lt;code&gt;gridY&lt;/code&gt; are gone and instead we do a nested loop that completely computes the result stored in &lt;code&gt;img[i,j]&lt;/code&gt;.
+&lt;p&gt;The &amp;ldquo;meshgrid&amp;rdquo; variables &lt;code&gt;gridX&lt;/code&gt; and &lt;code&gt;gridY&lt;/code&gt; are gone and instead, a nested loop completely computes the result for each element and stores it in &lt;code&gt;img[i,j]&lt;/code&gt;.
 Timing the new function results in&lt;/p&gt;
 
 &lt;pre&gt;&lt;code&gt;julia&amp;gt; @time myImg2(1024);
-  0.012674 seconds (7 allocations: 8.000 MB)
+  0.011171 seconds (9 allocations: 8.008 MB)
 &lt;/code&gt;&lt;/pre&gt;
 
 &lt;p&gt;which is a speed up of about 10x and a reduction of memory use by almost 20x without (I would say) making the code much more complicated to read and understand.&lt;/p&gt;
@@ -148,6 +137,10 @@ Timing the new function results in&lt;/p&gt;
 &lt;h2 id=&#34;conclusions&#34;&gt;Conclusions&lt;/h2&gt;
 
 &lt;p&gt;Rewriting code that is written in a &amp;ldquo;vectorized&amp;rdquo; form can sometimes be beneficial if you see that the code is allocating a lot of memory and the time spent garbage collecting is significant.&lt;/p&gt;
+
+&lt;h2 id=&#34;edits&#34;&gt;Edits:&lt;/h2&gt;
+
+&lt;p&gt;Removed a section that suggested taking away &lt;code&gt;collect&lt;/code&gt; from the &lt;code&gt;values&lt;/code&gt; variable. Since we are indexing directly into &lt;code&gt;values&lt;/code&gt; it turns out that using an iterator is slightly slower (10%) than using a &lt;code&gt;Vector&lt;/code&gt;. Thanks to &lt;a href=&#34;https://github.com/SimonDanisch&#34; target=&#34;_blank&#34;&gt;Simon Danisch&lt;/a&gt;&lt;/p&gt;
 &lt;div class=&#34;footnotes&#34;&gt;
 
 &lt;hr /&gt;
