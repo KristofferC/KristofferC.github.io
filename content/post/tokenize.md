@@ -12,8 +12,8 @@ What identifier will win? Read to find out!
 +++
 
 [*Tokenize*](https://github.com/KristofferC/Tokenize.jl) is a Julia package to perform lexical analysis of Julia source code.
-Lexing, is the process of transforming raw source code (represented as normal text) into a sequence of *tokens* which is
-a string with an associated meaning. Meaning here could be if the string represent an operator, a keyword or a comment etc.
+Lexing is the process of transforming raw source code (represented as normal text) into a sequence of *tokens* which is
+a string with an associated meaning. "Meaning" could here be if the string represent an operator, a keyword, a comment etc.
 
 The example below shows lexing (or tokenization) of some simple code.
 
@@ -44,25 +44,25 @@ julia> collect(tokenize("""
  7,1-7,0          ENDMARKER      ""
 ```
 
-The displayed array containing the tokens has three columns. The first column showing the location where the string of the token starts and ends,
+The displayed array containing the tokens has three columns. The first column shows the location where the string of the token starts and ends,
 which is represented as the line number (row) and at how many characters into the line (columns) the token starts / ends.
 The second column shows the type (*kind*) of token and, finally, the right column shows the string the token contains.
 
 One of the different token kinds is the *identifier*. These are names that refer to different entities in the code.
-This includes variables, types, functions etc. Identifiers are chosen by the programmer,
-as opposed to keywords which are chosen by the developers of the language.
+This includes variables, types, functions etc. The name of the identifiers are chosen by the programmer,
+in contrast to keywords which are chosen by the developers of the language.
 Some questions I thought interesting are:
 
-* What is the most common identifier in Julia base code. Has it changed from 0.5 to 0.6?
-* How about packages? Is the source code there significantly different from the code in Julia base in terms of the identifiers used?
+* What is the most common identifier in the Julia Base code (the code making up the standard library). Has it changed from 0.5 to 0.6?
+* How about packages? Is the source code there significantly different from the code in Julia Base in terms of the identifiers used?
 
-The plan is to use *Tokenize* to lex both Julia base and a bunch of packages, count the number of occurrences of
+The plan is to use *Tokenize* to lex both Julia Base and a bunch of packages, count the number of occurrences of
 each identifier and then summarize this as a top 10 list.
 
 ## A Julia source code identifier counter
 
 First, let's create a simple counter type to keep track of how many times each identifier occur.
-This is a just a wrapper around a dictionary with a default value of 0 and a
+This is a just a wrapper around a dictionary with a default value of `0` and a
 `count!` method that increments the counter for the supplied key:
 
 ```julia
@@ -92,7 +92,7 @@ julia> c["foo"]
 ```
 
 Now, we need a function that tokenizes a file and counts the number of identifiers in it.
-The code for sucha function is shown below and a short explanation follows:
+The code for such a function is shown below and a short explanation follows:
 
 ```julia
 function count_tokentypes!(counter, filepath, tokentype)
@@ -106,12 +106,12 @@ function count_tokentypes!(counter, filepath, tokentype)
 end
 ```
 
-This opens the file `filepath`, loops over the tokens and if the kind of token is the `tokentype`
+This opens the file at the path `filepath`, loops over the tokens, and if the kind of token is the `tokentype`
 the `counter` is incremented with the string of the token (extracted with `untokenize`) as the key.
 In *Tokenize* each type of token is represented by an enum, and the one corresponding to identifiers is named
 `Tokens.IDENTIFIER`.
 
-As an example, we could run the function on a short file in Base (`nofloat_hashing.jl`):
+As an example, we could run the function on a short file in base (`nofloat_hashing.jl`):
 
 ```julia
 julia> BASEDIR =  joinpath(JULIA_HOME, Base.DATAROOTDIR, "julia", "base")
@@ -127,7 +127,7 @@ julia> c["h"]
 8
 ```
 
-We see here that there are 8 occurrences of the literal `h` in the file.
+We see here that there are 8 occurrences of the identifier `h` in the file.
 
 The next step is to apply the `count_tokentypes` function to *all* the files in the base directory.
 To that end, we create the `applytofolder` function:
@@ -142,7 +142,7 @@ function applytofolder(path, f)
 end
 ```
 
-It takes a `path` to a folder and applies the function `f` on each filepath.
+It takes a `path` to a folder and applies the function `f` on each file in that path.
 The `walkdir` function works recursively so each file will be visited this way.
 
 Finally, we create a `Counter` and call the previously created `count_tokentypes` on all files
@@ -242,11 +242,11 @@ The plot below shows the same experiment repeated on the 0.6 code base:
        └────────────────────────────────────────┘ 
 ```
 
-Most of the results are relative counts are similar between 0.5 and 0.6 with the exception that `A` and `T` swapped place.
-In fact, the number of `T` identifers have actually decreased with almost 300 counts.
+Most of the counts are relatively similar between 0.5 and 0.6 with the exception that `A` overtook `T` for the second place.
+In fact, the number of `T` identifers have decreased with almost 300 counts!
 What could have caused this?
 The answer is a new syntactic sugar feature available in Julia 0.6 which was implemented by Steven G. Johnson in [PR #20414](https://github.com/JuliaLang/julia/pull/20414) .
-This allowed the parametric function with the syntax
+This allowed a parametric function with the syntax
 
 ```jl
 foo{T <: Real}(Point{T}) = ...
@@ -290,9 +290,9 @@ The results are:
 ```
 
 When we counted the Julia base folder we excluded all the files used for unit testing.
-For packages, these files are included and clearly `test`, most commonly used in the `@test` macro, is
-unsurprisingly very common. `T`, `x` and `i` are common in packages and base but for some reason
-the variable `d` is more common in packages than in julia base.
+For packages, these files are included and clearly `test`, used in the `@test` macro, is
+unsurprisingly very common. `T`, `x` and `i` are common in packages and Base but for some reason
+the variable `d` is more common in packages than in Base.
 
 ## Conclusion
 
@@ -300,6 +300,6 @@ Doing these type of investigations has perhaps little practical use but it is, a
 Feel free to tweak the code to find the most common string literal (`Tokens.STRING`) or perhaps most common integer (``Tokens.INTEGER`)
 or anything else you can come up with.
 
-Below is a wordcloud I made with the top 50 identifiers in Julia base.
+Below is a wordcloud I made with the top 50 identifiers in Julia Base.
 
 {{< figure src="/img/wordcloud.png" >}}
