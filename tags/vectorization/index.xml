@@ -7,7 +7,7 @@
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
     <copyright>&amp;copy; 2016 Kristoffer Carlsson</copyright>
-    <atom:link href="http://kristofferc.github.io/tags/vectorization/index.xml" rel="self" type="application/rss+xml" />
+    <atom:link href="/tags/vectorization/index.xml" rel="self" type="application/rss+xml" />
     
     <item>
       <title>Case study: Improving performance of a code written in Matlab style</title>
