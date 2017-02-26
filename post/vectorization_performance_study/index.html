@@ -10,15 +10,7 @@
   <meta name="author" content="Kristoffer Carlsson">
   <meta name="description" content="Ph.D student in Computational Mechanics">
 
-  
-  
-  
-  
-    
-    
-    <link rel="stylesheet" href="/css/highlight.min.css">
-    
-  
+  <link rel="stylesheet" href="/css/highlight.min.css">
   <link rel="stylesheet" href="/css/bootstrap.min.css">
   <link rel="stylesheet" href="/css/font-awesome.min.css">
   <link rel="stylesheet" href="/css/academicons.min.css">
@@ -34,7 +26,7 @@
   <link rel="icon" type="image/png" href="/img/icon.png">
   <link rel="apple-touch-icon" type="image/png" href="/img/apple-touch-icon.png">
 
-  <link rel="canonical" href="http://kristofferc.github.io/post/perf_vectorize/">
+  <link rel="canonical" href="http://kristofferc.github.io/post/vectorization_performance_study/">
 
   
 
@@ -64,53 +56,29 @@
       
       <ul class="nav navbar-nav navbar-right">
         
-
-        
-
         <li class="nav-item">
           <a href="/#about">
-            
-            <span>Home</span>
+            Home
           </a>
         </li>
-
         
-        
-
-        
-
         <li class="nav-item">
           <a href="/#posts">
-            
-            <span>Posts</span>
+            Posts
           </a>
         </li>
-
         
-        
-
-        
-
         <li class="nav-item">
           <a href="/#opensource">
-            
-            <span>Open source</span>
+            Open source
           </a>
         </li>
-
         
-        
-
-        
-
         <li class="nav-item">
           <a href="/#contact">
-            
-            <span>Contact</span>
+            Contact
           </a>
         </li>
-
-        
         
       </ul>
 
@@ -118,13 +86,14 @@
   </div>
 </nav>
 
+<div class="container">
 
-<article class="article" itemscope itemtype="http://schema.org/Article">
+  <article class="article" itemscope itemtype="http://schema.org/Article">
 
-  
+    
 
-  <div class="article-container">
     <h1 itemprop="name">Case study: Improving performance of a code written in Matlab style</h1>
+
     
 
 <div class="article-metadata">
@@ -136,23 +105,21 @@
   </span>
 
   
-
-  
   
   
   <span class="article-tags">
     <i class="fa fa-tags"></i>
     
-    <a href="/tags/performance">performance</a
+    <a class="article-tag-link" href="http://kristofferc.github.iotags/performance">performance</a
     >, 
     
-    <a href="/tags/vectorization">vectorization</a
+    <a class="article-tag-link" href="http://kristofferc.github.iotags/vectorization">vectorization</a
     >, 
     
-    <a href="/tags/loops">loops</a
+    <a class="article-tag-link" href="http://kristofferc.github.iotags/loops">loops</a
     >, 
     
-    <a href="/tags/julia">julia</a
+    <a class="article-tag-link" href="http://kristofferc.github.iotags/julia">julia</a
     >
     
   </span>
@@ -165,35 +132,35 @@
   <ul class="share">
     <li>
       <a class="facebook"
-         href="https://www.facebook.com/sharer.php?u=http%3a%2f%2fkristofferc.github.io%2fpost%2fperf_vectorize%2f"
+         href="https://www.facebook.com/sharer.php?u=http%3a%2f%2fkristofferc.github.io%2fpost%2fvectorization_performance_study%2f"
          target="_blank">
         <i class="fa fa-facebook"></i>
       </a>
     </li>
     <li>
       <a class="twitter"
-         href="https://twitter.com/intent/tweet?text=Case%20study%3a%20Improving%20performance%20of%20a%20code%20written%20in%20Matlab%20style&amp;url=http%3a%2f%2fkristofferc.github.io%2fpost%2fperf_vectorize%2f"
+         href="https://twitter.com/intent/tweet?text=Case%20study%3a%20Improving%20performance%20of%20a%20code%20written%20in%20Matlab%20style&amp;url=http%3a%2f%2fkristofferc.github.io%2fpost%2fvectorization_performance_study%2f"
          target="_blank">
         <i class="fa fa-twitter"></i>
       </a>
     </li>
     <li>
       <a class="linkedin"
-         href="https://www.linkedin.com/shareArticle?mini=true&amp;url=http%3a%2f%2fkristofferc.github.io%2fpost%2fperf_vectorize%2f&amp;title=Case%20study%3a%20Improving%20performance%20of%20a%20code%20written%20in%20Matlab%20style"
+         href="https://www.linkedin.com/shareArticle?mini=true&amp;url=http%3a%2f%2fkristofferc.github.io%2fpost%2fvectorization_performance_study%2f&amp;title=Case%20study%3a%20Improving%20performance%20of%20a%20code%20written%20in%20Matlab%20style"
          target="_blank">
         <i class="fa fa-linkedin"></i>
       </a>
     </li>
     <li>
       <a class="weibo"
-         href="http://service.weibo.com/share/share.php?url=http%3a%2f%2fkristofferc.github.io%2fpost%2fperf_vectorize%2f&amp;title=Case%20study%3a%20Improving%20performance%20of%20a%20code%20written%20in%20Matlab%20style"
+         href="http://service.weibo.com/share/share.php?url=http%3a%2f%2fkristofferc.github.io%2fpost%2fvectorization_performance_study%2f&amp;title=Case%20study%3a%20Improving%20performance%20of%20a%20code%20written%20in%20Matlab%20style"
          target="_blank">
         <i class="fa fa-weibo"></i>
       </a>
     </li>
     <li>
       <a class="email"
-         href="mailto:?subject=Case%20study%3a%20Improving%20performance%20of%20a%20code%20written%20in%20Matlab%20style&amp;body=http%3a%2f%2fkristofferc.github.io%2fpost%2fperf_vectorize%2f">
+         href="mailto:?subject=Case%20study%3a%20Improving%20performance%20of%20a%20code%20written%20in%20Matlab%20style&amp;body=http%3a%2f%2fkristofferc.github.io%2fpost%2fvectorization_performance_study%2f">
         <i class="fa fa-envelope"></i>
       </a>
     </li>
@@ -204,6 +171,7 @@
   
 
 </div>
+
 
     <div class="article-style" itemprop="articleBody">
       
@@ -255,7 +223,7 @@ julia&gt; heatmap(img)
 <h2 id="analysis">Analysis</h2>
 
 <p>To get an estimate of the time and memory allocation it takes to run the function we can use the <code>@time</code> macro.<sup class="footnote-ref" id="fnref:1"><a rel="footnote" href="#fn:1">1</a></sup>
-As to not measure compilation overhead, we time the function twice (here using Julia v0.5) and get</p>
+As to not measure compilation overhead, the function is timed twice (here using Julia v0.5).</p>
 
 <pre><code class="language-julia">julia&gt; @time myImg(1024);
   0.117500 seconds (845 allocations: 144.179 MB, 50.45% gc time)
@@ -265,29 +233,18 @@ As to not measure compilation overhead, we time the function twice (here using J
 Julia provides a macro called  <code>@code_warntype</code> which gives colored output where type instabilities are shown in red.
 Running <code>@code_warntype myImg(1024)</code> shows, however, that this function is perfectly fine from a type stability point of view.</p>
 
-<p>From the <code>@time</code> output, we see that a lot of the time (~50%) is spent in the garbage collector (GC).
-This indicates that we are allocating a lot of memory that needs to get cleaned up by the GC.
-Our initial goal should thus first be to reduce the amount of memory allocations.<sup class="footnote-ref" id="fnref:2"><a rel="footnote" href="#fn:2">2</a></sup></p>
+<p>The <code>@time</code> output, shows a significant amount of time (~50%) is spent in the garbage collector (GC).
+This indicates that large amounts of memory is being allocated and released and thus needs to be garbage collected.
+The initial goal should thus first be to reduce the amount of memory allocations.<sup class="footnote-ref" id="fnref:2"><a rel="footnote" href="#fn:2">2</a></sup></p>
 
-<p>Looking at the code we can see that the first non trivial memory allocation is the line</p>
-
-<pre><code class="language-jl">values = collect(linspace(-0.5,0.5,pts))
-</code></pre>
-
-<p>The function <code>linspace</code> returns an iterator which is here <code>collect</code>ed into a <code>Vector</code>. While in this case, this memory allocation is non significant, it is good practice to not
-allocate memory unnecessarily. Since we never directly index the <code>values</code> variable, it is fine to keep it as an iterator. We thus replace the line with</p>
-
-<pre><code class="language-jl">values = linspace(-0.5, 0.5, pts)
-</code></pre>
-
-<p>Next, we create two matrices in a typical &ldquo;meshgrid&rdquo; style:</p>
+<p>The most significant memory allocations start with the &ldquo;mesh grid&rdquo; type of variables <code>gridX</code> and <code>gridY</code> which are created as</p>
 
 <pre><code class="language-jl">gridX = [i for i in values, j in values]
 gridY = [j for i in values, j in values]
 </code></pre>
 
 <p>Often, creating a mesh grid like this is quite wasteful in terms of memory because we are here storing <code>pts</code> amount of data in <code>2*pts^2</code> amount of memory.
-Later, we then use these matrices to do operations in an &ldquo;vectorized&rdquo; fashion:</p>
+Later, these matrices are used to do operations in an &ldquo;vectorized&rdquo; fashion:</p>
 
 <pre><code class="language-jl">Xr = cos(aEll).*gridX - sin(aEll).*gridY
 Yr = cos(aEll).*gridY + sin(aEll).*gridX
@@ -302,8 +259,8 @@ Code like this is quite common from users coming from a MATLAB programming backg
 In addition to the overhead of allocating memory, this also has the effect that the computer is working with &ldquo;cold&rdquo; memory (memory not in cache) a lot.
 For good performance, it is important to try to do as much operations as possible on the data while it is in cache before loading new data.</p>
 
-<p>The remedy to the memory and cache problem is to attack the problem from a different dimension.
-Instead of building up the result by doing quite small operations array by array, we do it element by element.</p>
+<p>The remedy to the memory and cache problem is to attack the problem along a different dimension.
+Instead of building up the full result array by doing small operations array by array, it is built up element by element.</p>
 
 <p>My proposed rewrite of the function is:</p>
 
@@ -311,7 +268,7 @@ Instead of building up the result by doing quite small operations array by array
   # rotation of ellipse
   aEll = 35.0/180.0*pi
   axes_inv = [6.0, 25.0]
-  values = linspace(-0.5,0.5,pts)
+  values = collect(linspace(-0.5,0.5,pts))
 
   img = zeros(Float64, pts, pts)
   cosa = cos(aEll)
@@ -327,11 +284,11 @@ Instead of building up the result by doing quite small operations array by array
 end
 </code></pre>
 
-<p>The &ldquo;meshgrid&rdquo; variables <code>gridX</code> and <code>gridY</code> are gone and instead we do a nested loop that completely computes the result stored in <code>img[i,j]</code>.
+<p>The &ldquo;meshgrid&rdquo; variables <code>gridX</code> and <code>gridY</code> are gone and instead, a nested loop completely computes the result for each element and stores it in <code>img[i,j]</code>.
 Timing the new function results in</p>
 
 <pre><code>julia&gt; @time myImg2(1024);
-  0.012674 seconds (7 allocations: 8.000 MB)
+  0.011171 seconds (9 allocations: 8.008 MB)
 </code></pre>
 
 <p>which is a speed up of about 10x and a reduction of memory use by almost 20x without (I would say) making the code much more complicated to read and understand.</p>
@@ -339,6 +296,10 @@ Timing the new function results in</p>
 <h2 id="conclusions">Conclusions</h2>
 
 <p>Rewriting code that is written in a &ldquo;vectorized&rdquo; form can sometimes be beneficial if you see that the code is allocating a lot of memory and the time spent garbage collecting is significant.</p>
+
+<h2 id="edits">Edits:</h2>
+
+<p>Removed a section that suggested taking away <code>collect</code> from the <code>values</code> variable. Since we are indexing directly into <code>values</code> it turns out that using an iterator is slightly slower (10%) than using a <code>Vector</code>. Thanks to <a href="https://github.com/SimonDanisch" target="_blank">Simon Danisch</a></p>
 <div class="footnotes">
 
 <hr />
@@ -354,34 +315,26 @@ Timing the new function results in</p>
 </div>
 
     </div>
-  </div>
 
-</article>
+  </article>
 
-<div class="container">
   <nav>
   <ul class="pager">
     
 
     
-    <li class="next"><a href="http://kristofferc.github.io/post/tokenize/">What identifier is the most common in Julia code? The answer might surprise you! <span
-      aria-hidden="true">&rarr;</span></a></li>
-    
   </ul>
 </nav>
 
-</div>
-
-<div class="article-container">
   
 <section id="comments">
   <div id="disqus_thread">
     <div id="disqus_thread"></div>
 <script type="text/javascript">
     var disqus_shortname = 'kristoffer-carlsson';
-    var disqus_identifier = 'http:\/\/kristofferc.github.io\/post\/perf_vectorize\/';
+    var disqus_identifier = 'http:\/\/kristofferc.github.io\/post\/vectorization_performance_study\/';
     var disqus_title = 'Case study: Improving performance of a code written in Matlab style';
-    var disqus_url = 'http:\/\/kristofferc.github.io\/post\/perf_vectorize\/';
+    var disqus_url = 'http:\/\/kristofferc.github.io\/post\/vectorization_performance_study\/';
 
     (function() {
         var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
@@ -395,8 +348,8 @@ Timing the new function results in</p>
 </section>
 
 
-</div>
 
+</div>
 <footer class="site-footer">
   <div class="container">
     <p class="powered-by">
@@ -423,7 +376,6 @@ Timing the new function results in</p>
     <script src="/js/jquery-1.12.3.min.js"></script>
     <script src="/js/bootstrap.min.js"></script>
     <script src="/js/isotope.pkgd.min.js"></script>
-    <script src="//cdnjs.cloudflare.com/ajax/libs/jquery.imagesloaded/4.1.1/imagesloaded.pkgd.min.js"></script>
     <script src="/js/hugo-academic.js"></script>
     
 
@@ -450,16 +402,8 @@ Timing the new function results in</p>
     
 
     
-    
-      
-      <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.9.0/highlight.min.js"></script>
-
-      
-
-      
-
-      <script>hljs.initHighlightingOnLoad();</script>
-    
+    <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.3.0/highlight.min.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
 
     
     
