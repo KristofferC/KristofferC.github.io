@@ -7,15 +7,311 @@
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
     <copyright>&amp;copy; 2016 Kristoffer Carlsson</copyright>
-    <lastBuildDate>Mon, 26 Dec 2016 15:00:00 +0000</lastBuildDate>
-    <atom:link href="/post/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Sun, 26 Feb 2017 15:00:00 +0000</lastBuildDate>
+    <atom:link href="http://kristofferc.github.io/post/index.xml" rel="self" type="application/rss+xml" />
+    
+    <item>
+      <title>What identifier is the most common in Julia code? The answer might surprise you!</title>
+      <link>http://kristofferc.github.io/post/tokenize/</link>
+      <pubDate>Sun, 26 Feb 2017 15:00:00 +0000</pubDate>
+      
+      <guid>http://kristofferc.github.io/post/tokenize/</guid>
+      <description>
+
+&lt;p&gt;&lt;a href=&#34;https://github.com/KristofferC/Tokenize.jl&#34; target=&#34;_blank&#34;&gt;&lt;em&gt;Tokenize&lt;/em&gt;&lt;/a&gt; is a Julia package to perform lexical analysis of Julia source code.
+Lexing, is the process of transforming raw source code (represented as normal text) into a sequence of &lt;em&gt;tokens&lt;/em&gt; which is
+a string with an associated meaning. Meaning here could be if the string represent an operator, a keyword or a comment etc.&lt;/p&gt;
+
+&lt;p&gt;The example below shows lexing (or tokenization) of some simple code.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-julia&#34;&gt;julia&amp;gt; using Tokenize
+
+julia&amp;gt; collect(tokenize(&amp;quot;&amp;quot;&amp;quot;
+       100
+       &amp;quot;this is a string&amp;quot;
+       &#39;a&#39;
+       type
+       foo
+       *
+       &amp;quot;&amp;quot;&amp;quot;))
+13-element Array{Tokenize.Tokens.Token,1}:
+ 1,1-1,3          INTEGER        &amp;quot;100&amp;quot;
+ 1,4-2,0          WHITESPACE     &amp;quot;\n&amp;quot;
+ 2,1-2,18         STRING         &amp;quot;\&amp;quot;this is a string\&amp;quot;&amp;quot;
+ 2,19-3,0         WHITESPACE     &amp;quot;\n&amp;quot;
+ 3,1-3,3          CHAR           &amp;quot;&#39;a&#39;&amp;quot;
+ 3,4-4,0          WHITESPACE     &amp;quot;\n&amp;quot;
+ 4,1-4,4          KEYWORD        &amp;quot;type&amp;quot;
+ 4,5-5,0          WHITESPACE     &amp;quot;\n&amp;quot;
+ 5,1-5,3          IDENTIFIER     &amp;quot;foo&amp;quot;
+ 5,4-6,0          WHITESPACE     &amp;quot;\n&amp;quot;
+ 6,1-6,1          OP             &amp;quot;*&amp;quot;
+ 6,2-7,0          WHITESPACE     &amp;quot;\n&amp;quot;
+ 7,1-7,0          ENDMARKER      &amp;quot;&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;The displayed array containing the tokens has three columns. The first column showing the location where the string of the token starts and ends,
+which is represented as the line number (row) and at how many characters into the line (columns) the token starts / ends.
+The second column shows the type (&lt;em&gt;kind&lt;/em&gt;) of token and, finally, the right column shows the string the token contains.&lt;/p&gt;
+
+&lt;p&gt;One of the different token kinds is the &lt;em&gt;identifier&lt;/em&gt;. These are names that refer to different entities in the code.
+This includes variables, types, functions etc. Identifiers are chosen by the programmer,
+as opposed to keywords which are chosen by the developers of the language.
+Some questions I thought interesting are:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;What is the most common identifier in Julia base code. Has it changed from 0.5 to 0.6?&lt;/li&gt;
+&lt;li&gt;How about packages? Is the source code there significantly different from the code in Julia base in terms of the identifiers used?&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;The plan is to use &lt;em&gt;Tokenize&lt;/em&gt; to lex both Julia base and a bunch of packages, count the number of occurrences of
+each identifier and then summarize this as a top 10 list.&lt;/p&gt;
+
+&lt;h2 id=&#34;a-julia-source-code-identifier-counter&#34;&gt;A Julia source code identifier counter&lt;/h2&gt;
+
+&lt;p&gt;First, let&amp;rsquo;s create a simple counter type to keep track of how many times each identifier occur.
+This is a just a wrapper around a dictionary with a default value of 0 and a
+&lt;code&gt;count!&lt;/code&gt; method that increments the counter for the supplied key:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-julia&#34;&gt;immutable Counter{T}
+    d::Dict{T, Int}
+end
+Counter{T}(::Type{T})= Counter(Dict{T, Int}())
+
+Base.getindex{T}(c::Counter{T}, v::T) = get(c.d, v, 0)
+getdictionary(c::Counter) = c.d
+count!{T}(c::Counter{T}, v::T) = haskey(c.d, v) ? c.d[v] += 1 : c.d[v] = 1
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;A short example of the &lt;code&gt;Counter&lt;/code&gt; type in action is showed below.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-julia&#34;&gt;julia&amp;gt; c = Counter(String)
+Counter{String}(Dict{String,Int64}())
+
+julia&amp;gt; c[&amp;quot;foo&amp;quot;]
+0
+
+julia&amp;gt; count!(c, &amp;quot;foo&amp;quot;); count!(c, &amp;quot;foo&amp;quot;);
+
+julia&amp;gt; c[&amp;quot;foo&amp;quot;]
+2
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Now, we need a function that tokenizes a file and counts the number of identifiers in it.
+The code for sucha function is shown below and a short explanation follows:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-julia&#34;&gt;function count_tokentypes!(counter, filepath, tokentype)
+    f = open(filepath, &amp;quot;r&amp;quot;)
+    for token in tokenize(f)
+        if Tokens.kind(token) == tokentype
+            count!(counter, untokenize(token))
+        end
+    end
+    return counter
+end
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;This opens the file &lt;code&gt;filepath&lt;/code&gt;, loops over the tokens and if the kind of token is the &lt;code&gt;tokentype&lt;/code&gt;
+the &lt;code&gt;counter&lt;/code&gt; is incremented with the string of the token (extracted with &lt;code&gt;untokenize&lt;/code&gt;) as the key.
+In &lt;em&gt;Tokenize&lt;/em&gt; each type of token is represented by an enum, and the one corresponding to identifiers is named
+&lt;code&gt;Tokens.IDENTIFIER&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;As an example, we could run the function on a short file in Base (&lt;code&gt;nofloat_hashing.jl&lt;/code&gt;):&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-julia&#34;&gt;julia&amp;gt; BASEDIR =  joinpath(JULIA_HOME, Base.DATAROOTDIR, &amp;quot;julia&amp;quot;, &amp;quot;base&amp;quot;)
+
+julia&amp;gt; filepath = joinpath(BASEDIR, &amp;quot;nofloat_hashing.jl&amp;quot;);
+
+julia&amp;gt; c = Counter(String);
+
+julia&amp;gt; count_tokentypes!(c, filepath, Tokens.IDENTIFIER)
+Counter{String}(Dict(&amp;quot;b&amp;quot;=&amp;gt;2,&amp;quot;x&amp;quot;=&amp;gt;8,&amp;quot;a&amp;quot;=&amp;gt;2,&amp;quot;h&amp;quot;=&amp;gt;8,&amp;quot;UInt32&amp;quot;=&amp;gt;1,&amp;quot;UInt16&amp;quot;=&amp;gt;1,&amp;quot;hx&amp;quot;=&amp;gt;3,&amp;quot;abs&amp;quot;=&amp;gt;1,&amp;quot;Int8&amp;quot;=&amp;gt;1,&amp;quot;Int16&amp;quot;=&amp;gt;1…))
+
+julia&amp;gt; c[&amp;quot;h&amp;quot;]
+8
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;We see here that there are 8 occurrences of the literal &lt;code&gt;h&lt;/code&gt; in the file.&lt;/p&gt;
+
+&lt;p&gt;The next step is to apply the &lt;code&gt;count_tokentypes&lt;/code&gt; function to &lt;em&gt;all&lt;/em&gt; the files in the base directory.
+To that end, we create the &lt;code&gt;applytofolder&lt;/code&gt; function:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-julia&#34;&gt;function applytofolder(path, f)
+    for (root, dirs, files) in walkdir(path)
+        for file in files
+            f(joinpath(root, file))
+        end
+    end
+end
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;It takes a &lt;code&gt;path&lt;/code&gt; to a folder and applies the function &lt;code&gt;f&lt;/code&gt; on each filepath.
+The &lt;code&gt;walkdir&lt;/code&gt; function works recursively so each file will be visited this way.&lt;/p&gt;
+
+&lt;p&gt;Finally, we create a &lt;code&gt;Counter&lt;/code&gt; and call the previously created &lt;code&gt;count_tokentypes&lt;/code&gt; on all files
+that end with &lt;code&gt;&amp;quot;.jl&amp;quot;&lt;/code&gt; using the &lt;code&gt;applytofolder&lt;/code&gt; function:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-julia&#34;&gt;julia&amp;gt; BASEDIR = joinpath(JULIA_HOME, Base.DATAROOTDIR, &amp;quot;julia&amp;quot;, &amp;quot;base&amp;quot;)
+
+julia&amp;gt; c = Counter(String)
+
+julia&amp;gt; applytofolder(BASEDIR,
+                     function(file)
+                         if endswith(file, &amp;quot;.jl&amp;quot;)
+                             count_tokentypes!(c, file, Tokens.IDENTIFIER)
+                         end
+                     end)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;The counter &lt;code&gt;c&lt;/code&gt; now contains the count of all identifiers in the base folder:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-julia&#34;&gt;julia&amp;gt; c[&amp;quot;_uv_hook_close&amp;quot;]
+12
+
+julia&amp;gt; c[&amp;quot;x&amp;quot;]
+7643
+
+julia&amp;gt; c[&amp;quot;str&amp;quot;]
+230
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h2 id=&#34;analysis&#34;&gt;Analysis&lt;/h2&gt;
+
+&lt;p&gt;We are interested in the most common identifiers so we create a function that
+extracts the &lt;code&gt;n&lt;/code&gt; most common identifiers as two vectors.
+One with the identifiers and one with the counts:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-julia&#34;&gt;function getntop(c::Counter, n)
+    vec = Tuple{String, Int}[]
+    for (k, v) in getdictionary(c)
+        push!(vec, (k, v))
+    end
+    sort!(vec, by = x -&amp;gt; x[2], rev = true)
+    vec_trunc = vec[1:n-1]
+    identifiers = [v[1] for v in vec_trunc]
+    counts      = [v[2] for v in vec_trunc]
+    return identifiers, counts
+end
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;To visualize this we use the excellent plotting package
+ &lt;a href=&#34;https://github.com/Evizero/UnicodePlots.jl&#34; target=&#34;_blank&#34;&gt;&lt;em&gt;UnicodePlots&lt;/em&gt;&lt;/a&gt;:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-julia&#34;&gt;julia&amp;gt; using UnicodePlots
+
+julia&amp;gt; identifiers, counts = getntop(c, 10)
+
+julia&amp;gt; barplot(identifiers, counts, title = &amp;quot;Base identifiers&amp;quot;)
+                   Base identifiers
+       ┌────────────────────────────────────────┐
+     x │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 7643 │
+     T │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 7202   │
+     A │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 7001    │
+     i │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 5119            │
+   Ptr │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 4239                │
+     s │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 4128                 │
+     n │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 3650                   │
+     B │▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 3143                     │
+    io │▪▪▪▪▪▪▪▪▪▪▪▪ 2714                       │
+       └────────────────────────────────────────┘
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;So there we have it, &lt;code&gt;x&lt;/code&gt; is the winner, closely followed by &lt;code&gt;T&lt;/code&gt; and &lt;code&gt;A&lt;/code&gt;.
+This is perhaps not very surprising; &lt;code&gt;x&lt;/code&gt; is a very common variable name,
+&lt;code&gt;T&lt;/code&gt; is used a lot in parametric functions and &lt;code&gt;A&lt;/code&gt; is used a lot in the
+Linear Algebra code base which is quite large.&lt;/p&gt;
+
+&lt;h3 id=&#34;difference-vs-0-6&#34;&gt;Difference vs. 0.6&lt;/h3&gt;
+
+&lt;p&gt;The plot below shows the same experiment repeated on the 0.6 code base:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-julia&#34;&gt;               Base identifiers 0.6
+       ┌────────────────────────────────────────┐ 
+     x │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 7718 │ 
+     A │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 7313   │ 
+     T │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 6932    │ 
+     i │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 5242            │ 
+   Ptr │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 4147                 │ 
+     s │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 4093                 │ 
+     n │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 3650                   │ 
+     B │▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 3174                     │ 
+    io │▪▪▪▪▪▪▪▪▪▪▪▪▪ 2933                      │ 
+       └────────────────────────────────────────┘ 
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Most of the results are relative counts are similar between 0.5 and 0.6 with the exception that &lt;code&gt;A&lt;/code&gt; and &lt;code&gt;T&lt;/code&gt; swapped place.
+In fact, the number of &lt;code&gt;T&lt;/code&gt; identifers have actually decreased with almost 300 counts.
+What could have caused this?
+The answer is a new syntactic sugar feature available in Julia 0.6 which was implemented by Steven G. Johnson in &lt;a href=&#34;https://github.com/JuliaLang/julia/pull/20414&#34; target=&#34;_blank&#34;&gt;PR #20414&lt;/a&gt; .
+This allowed the parametric function with the syntax&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;foo{T &amp;lt;: Real}(Point{T}) = ...
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;to instead be written more tersely as&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;foo(Point{&amp;lt;:Real})...
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;In &lt;a href=&#34;https://github.com/JuliaLang/julia/pull/20446&#34; target=&#34;_blank&#34;&gt;PR #20446&lt;/a&gt; Pablo Zubieta went through the Julia code base and updated
+many of the function signatures to use this new syntax.
+Since &lt;code&gt;T&lt;/code&gt; is a very common name to use for the parameter, the counts of &lt;code&gt;T&lt;/code&gt; significantly decreased.
+And this is how &lt;code&gt;A&lt;/code&gt; managed to win over &lt;code&gt;T&lt;/code&gt; in 0.6 in the prestigeful &amp;ldquo;most common identifier&amp;rdquo;-competition.&lt;/p&gt;
+
+&lt;h3 id=&#34;julia-packages&#34;&gt;Julia packages.&lt;/h3&gt;
+
+&lt;p&gt;We now perform the same experiment but on the Julia package directory. For me, this includes around 130 packages:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-julia&#34;&gt;julia&amp;gt; length(readdir(Pkg.dir()))
+137
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;The results are:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-julia&#34;&gt;                   Package identifiers
+        ┌────────────────────────────────────────┐ 
+      T │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 15425 │ 
+      x │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 15062  │ 
+   test │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 13624     │ 
+      i │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 9989              │ 
+      d │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 9562               │ 
+      A │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 8280                 │ 
+    RGB │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 8041                  │ 
+      a │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 7144                    │ 
+      n │▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 6470                     │ 
+        └────────────────────────────────────────┘ 
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;When we counted the Julia base folder we excluded all the files used for unit testing.
+For packages, these files are included and clearly &lt;code&gt;test&lt;/code&gt;, most commonly used in the &lt;code&gt;@test&lt;/code&gt; macro, is
+unsurprisingly very common. &lt;code&gt;T&lt;/code&gt;, &lt;code&gt;x&lt;/code&gt; and &lt;code&gt;i&lt;/code&gt; are common in packages and base but for some reason
+the variable &lt;code&gt;d&lt;/code&gt; is more common in packages than in julia base.&lt;/p&gt;
+
+&lt;h2 id=&#34;conclusion&#34;&gt;Conclusion&lt;/h2&gt;
+
+&lt;p&gt;Doing these type of investigations has perhaps little practical use but it is, at leat to me, a lot of fun.
+Feel free to tweak the code to find the most common string literal (&lt;code&gt;Tokens.STRING&lt;/code&gt;) or perhaps most common integer (`&lt;code&gt;Tokens.INTEGER&lt;/code&gt;)
+or anything else you can come up with.&lt;/p&gt;
+
+&lt;p&gt;Below is a wordcloud I made with the top 50 identifiers in Julia base.&lt;/p&gt;
+
+
+&lt;figure &gt;
+    
+        &lt;img src=&#34;http://KristofferC.github.io/img/wordcloud.png&#34; /&gt;
+    
+    
+&lt;/figure&gt;
+
+</description>
+    </item>
     
     <item>
       <title>Case study: Improving performance of a code written in Matlab style</title>
-      <link>http://kristofferc.github.io/post/vectorization_performance_study/</link>
+      <link>http://kristofferc.github.io/post/perf_vectorize/</link>
       <pubDate>Mon, 26 Dec 2016 15:00:00 +0000</pubDate>
       
-      <guid>http://kristofferc.github.io/post/vectorization_performance_study/</guid>
+      <guid>http://kristofferc.github.io/post/perf_vectorize/</guid>
       <description>
 
 &lt;h2 id=&#34;introduction&#34;&gt;Introduction&lt;/h2&gt;
@@ -65,7 +361,7 @@ julia&amp;gt; heatmap(img)
 &lt;h2 id=&#34;analysis&#34;&gt;Analysis&lt;/h2&gt;
 
 &lt;p&gt;To get an estimate of the time and memory allocation it takes to run the function we can use the &lt;code&gt;@time&lt;/code&gt; macro.&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:1&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;
-As to not measure compilation overhead, the function is timed twice (here using Julia v0.5).&lt;/p&gt;
+As to not measure compilation overhead, we time the function twice (here using Julia v0.5) and get&lt;/p&gt;
 
 &lt;pre&gt;&lt;code class=&#34;language-julia&#34;&gt;julia&amp;gt; @time myImg(1024);
   0.117500 seconds (845 allocations: 144.179 MB, 50.45% gc time)
@@ -75,18 +371,29 @@ As to not measure compilation overhead, the function is timed twice (here using 
 Julia provides a macro called  &lt;code&gt;@code_warntype&lt;/code&gt; which gives colored output where type instabilities are shown in red.
 Running &lt;code&gt;@code_warntype myImg(1024)&lt;/code&gt; shows, however, that this function is perfectly fine from a type stability point of view.&lt;/p&gt;
 
-&lt;p&gt;The &lt;code&gt;@time&lt;/code&gt; output, shows a significant amount of time (~50%) is spent in the garbage collector (GC).
-This indicates that large amounts of memory is being allocated and released and thus needs to be garbage collected.
-The initial goal should thus first be to reduce the amount of memory allocations.&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:2&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:2&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;p&gt;From the &lt;code&gt;@time&lt;/code&gt; output, we see that a lot of the time (~50%) is spent in the garbage collector (GC).
+This indicates that we are allocating a lot of memory that needs to get cleaned up by the GC.
+Our initial goal should thus first be to reduce the amount of memory allocations.&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:2&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:2&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
 
-&lt;p&gt;The most significant memory allocations start with the &amp;ldquo;mesh grid&amp;rdquo; type of variables &lt;code&gt;gridX&lt;/code&gt; and &lt;code&gt;gridY&lt;/code&gt; which are created as&lt;/p&gt;
+&lt;p&gt;Looking at the code we can see that the first non trivial memory allocation is the line&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;values = collect(linspace(-0.5,0.5,pts))
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;The function &lt;code&gt;linspace&lt;/code&gt; returns an iterator which is here &lt;code&gt;collect&lt;/code&gt;ed into a &lt;code&gt;Vector&lt;/code&gt;. While in this case, this memory allocation is non significant, it is good practice to not
+allocate memory unnecessarily. Since we never directly index the &lt;code&gt;values&lt;/code&gt; variable, it is fine to keep it as an iterator. We thus replace the line with&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;values = linspace(-0.5, 0.5, pts)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Next, we create two matrices in a typical &amp;ldquo;meshgrid&amp;rdquo; style:&lt;/p&gt;
 
 &lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;gridX = [i for i in values, j in values]
 gridY = [j for i in values, j in values]
 &lt;/code&gt;&lt;/pre&gt;
 
 &lt;p&gt;Often, creating a mesh grid like this is quite wasteful in terms of memory because we are here storing &lt;code&gt;pts&lt;/code&gt; amount of data in &lt;code&gt;2*pts^2&lt;/code&gt; amount of memory.
-Later, these matrices are used to do operations in an &amp;ldquo;vectorized&amp;rdquo; fashion:&lt;/p&gt;
+Later, we then use these matrices to do operations in an &amp;ldquo;vectorized&amp;rdquo; fashion:&lt;/p&gt;
 
 &lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;Xr = cos(aEll).*gridX - sin(aEll).*gridY
 Yr = cos(aEll).*gridY + sin(aEll).*gridX
@@ -101,8 +408,8 @@ Code like this is quite common from users coming from a MATLAB programming backg
 In addition to the overhead of allocating memory, this also has the effect that the computer is working with &amp;ldquo;cold&amp;rdquo; memory (memory not in cache) a lot.
 For good performance, it is important to try to do as much operations as possible on the data while it is in cache before loading new data.&lt;/p&gt;
 
-&lt;p&gt;The remedy to the memory and cache problem is to attack the problem along a different dimension.
-Instead of building up the full result array by doing small operations array by array, it is built up element by element.&lt;/p&gt;
+&lt;p&gt;The remedy to the memory and cache problem is to attack the problem from a different dimension.
+Instead of building up the result by doing quite small operations array by array, we do it element by element.&lt;/p&gt;
 
 &lt;p&gt;My proposed rewrite of the function is:&lt;/p&gt;
 
@@ -110,7 +417,7 @@ Instead of building up the full result array by doing small operations array by 
   # rotation of ellipse
   aEll = 35.0/180.0*pi
   axes_inv = [6.0, 25.0]
-  values = collect(linspace(-0.5,0.5,pts))
+  values = linspace(-0.5,0.5,pts)
 
   img = zeros(Float64, pts, pts)
   cosa = cos(aEll)
@@ -126,11 +433,11 @@ Instead of building up the full result array by doing small operations array by 
 end
 &lt;/code&gt;&lt;/pre&gt;
 
-&lt;p&gt;The &amp;ldquo;meshgrid&amp;rdquo; variables &lt;code&gt;gridX&lt;/code&gt; and &lt;code&gt;gridY&lt;/code&gt; are gone and instead, a nested loop completely computes the result for each element and stores it in &lt;code&gt;img[i,j]&lt;/code&gt;.
+&lt;p&gt;The &amp;ldquo;meshgrid&amp;rdquo; variables &lt;code&gt;gridX&lt;/code&gt; and &lt;code&gt;gridY&lt;/code&gt; are gone and instead we do a nested loop that completely computes the result stored in &lt;code&gt;img[i,j]&lt;/code&gt;.
 Timing the new function results in&lt;/p&gt;
 
 &lt;pre&gt;&lt;code&gt;julia&amp;gt; @time myImg2(1024);
-  0.011171 seconds (9 allocations: 8.008 MB)
+  0.012674 seconds (7 allocations: 8.000 MB)
 &lt;/code&gt;&lt;/pre&gt;
 
 &lt;p&gt;which is a speed up of about 10x and a reduction of memory use by almost 20x without (I would say) making the code much more complicated to read and understand.&lt;/p&gt;
@@ -138,10 +445,6 @@ Timing the new function results in&lt;/p&gt;
 &lt;h2 id=&#34;conclusions&#34;&gt;Conclusions&lt;/h2&gt;
 
 &lt;p&gt;Rewriting code that is written in a &amp;ldquo;vectorized&amp;rdquo; form can sometimes be beneficial if you see that the code is allocating a lot of memory and the time spent garbage collecting is significant.&lt;/p&gt;
-
-&lt;h2 id=&#34;edits&#34;&gt;Edits:&lt;/h2&gt;
-
-&lt;p&gt;Removed a section that suggested taking away &lt;code&gt;collect&lt;/code&gt; from the &lt;code&gt;values&lt;/code&gt; variable. Since we are indexing directly into &lt;code&gt;values&lt;/code&gt; it turns out that using an iterator is slightly slower (10%) than using a &lt;code&gt;Vector&lt;/code&gt;. Thanks to &lt;a href=&#34;https://github.com/SimonDanisch&#34; target=&#34;_blank&#34;&gt;Simon Danisch&lt;/a&gt;&lt;/p&gt;
 &lt;div class=&#34;footnotes&#34;&gt;
 
 &lt;hr /&gt;
