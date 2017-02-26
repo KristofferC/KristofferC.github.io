@@ -288,7 +288,7 @@ the variable &lt;code&gt;d&lt;/code&gt; is more common in packages than in Base.
 
 &lt;h2 id=&#34;conclusion&#34;&gt;Conclusion&lt;/h2&gt;
 
-&lt;p&gt;Doing these type of investigations has perhaps little practical use but it is, at leat to me, a lot of fun.
+&lt;p&gt;Doing these type of investigations has perhaps little practical use but it is, at least to me, a lot of fun.
 Feel free to tweak the code to find the most common string literal (&lt;code&gt;Tokens.STRING&lt;/code&gt;) or perhaps most common integer (`&lt;code&gt;Tokens.INTEGER&lt;/code&gt;)
 or anything else you can come up with.&lt;/p&gt;
 
