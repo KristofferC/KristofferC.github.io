@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="theme" content="hugo-academic">
+  <meta name="generator" content="Hugo 0.19-DEV" />
+  <meta name="author" content="Kristoffer Carlsson">
+  <meta name="description" content="Ph.D student in Computational Mechanics">
+
+  <link rel="stylesheet" href="/css/highlight.min.css">
+  <link rel="stylesheet" href="/css/bootstrap.min.css">
+  <link rel="stylesheet" href="/css/font-awesome.min.css">
+  <link rel="stylesheet" href="/css/academicons.min.css">
+  <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Lato:400,700|Merriweather|Roboto+Mono">
+  <link rel="stylesheet" href="/css/hugo-academic.css">
+  
+  <link rel="stylesheet" href="/css/custom.css">
+  
+
+  <link rel="alternate" href="http://KristofferC.github.io/index.xml" type="application/rss+xml" title="Kristoffer Carlsson">
+  <link rel="feed" href="http://KristofferC.github.io/index.xml" type="application/rss+xml" title="Kristoffer Carlsson">
+
+  <link rel="icon" type="image/png" href="/img/icon.png">
+  <link rel="apple-touch-icon" type="image/png" href="/img/apple-touch-icon.png">
+
+  <link rel="canonical" href="http://kristofferc.github.io/post/tokenize/">
+
+  
+
+  <title>What identifier is the most common in Julia code? The answer might surprise you! | Kristoffer Carlsson</title>
+
+</head>
+<body id="top" data-spy="scroll" data-target="#navbar-main" data-offset="71">
+
+<nav class="navbar navbar-default navbar-fixed-top" id="navbar-main">
+  <div class="container">
+
+    
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse"
+              data-target=".navbar-collapse" aria-expanded="false">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="/">Kristoffer Carlsson</a>
+    </div>
+
+    
+    <div class="collapse navbar-collapse">
+
+      
+      <ul class="nav navbar-nav navbar-right">
+        
+        <li class="nav-item">
+          <a href="/#about">
+            Home
+          </a>
+        </li>
+        
+        <li class="nav-item">
+          <a href="/#posts">
+            Posts
+          </a>
+        </li>
+        
+        <li class="nav-item">
+          <a href="/#opensource">
+            Open source
+          </a>
+        </li>
+        
+        <li class="nav-item">
+          <a href="/#contact">
+            Contact
+          </a>
+        </li>
+        
+      </ul>
+
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+
+  <article class="article" itemscope itemtype="http://schema.org/Article">
+
+    
+
+    <h1 itemprop="name">What identifier is the most common in Julia code? The answer might surprise you!</h1>
+
+    
+
+<div class="article-metadata">
+
+  <span class="article-date">
+    <time datetime="2017-02-26 15:00:00 &#43;0000 UTC" itemprop="datePublished">
+      Sun, Feb 26, 2017
+    </time>
+  </span>
+
+  
+  
+  
+  <span class="article-tags">
+    <i class="fa fa-tags"></i>
+    
+    <a class="article-tag-link" href="http://kristofferc.github.iotags/lexing">lexing</a
+    >, 
+    
+    <a class="article-tag-link" href="http://kristofferc.github.iotags/tokenization">tokenization</a
+    >, 
+    
+    <a class="article-tag-link" href="http://kristofferc.github.iotags/julia">julia</a
+    >
+    
+  </span>
+  
+  
+
+  
+  
+<div class="share-box" aria-hidden="true">
+  <ul class="share">
+    <li>
+      <a class="facebook"
+         href="https://www.facebook.com/sharer.php?u=http%3a%2f%2fkristofferc.github.io%2fpost%2ftokenize%2f"
+         target="_blank">
+        <i class="fa fa-facebook"></i>
+      </a>
+    </li>
+    <li>
+      <a class="twitter"
+         href="https://twitter.com/intent/tweet?text=What%20identifier%20is%20the%20most%20common%20in%20Julia%20code%3f%20The%20answer%20might%20surprise%20you%21&amp;url=http%3a%2f%2fkristofferc.github.io%2fpost%2ftokenize%2f"
+         target="_blank">
+        <i class="fa fa-twitter"></i>
+      </a>
+    </li>
+    <li>
+      <a class="linkedin"
+         href="https://www.linkedin.com/shareArticle?mini=true&amp;url=http%3a%2f%2fkristofferc.github.io%2fpost%2ftokenize%2f&amp;title=What%20identifier%20is%20the%20most%20common%20in%20Julia%20code%3f%20The%20answer%20might%20surprise%20you%21"
+         target="_blank">
+        <i class="fa fa-linkedin"></i>
+      </a>
+    </li>
+    <li>
+      <a class="weibo"
+         href="http://service.weibo.com/share/share.php?url=http%3a%2f%2fkristofferc.github.io%2fpost%2ftokenize%2f&amp;title=What%20identifier%20is%20the%20most%20common%20in%20Julia%20code%3f%20The%20answer%20might%20surprise%20you%21"
+         target="_blank">
+        <i class="fa fa-weibo"></i>
+      </a>
+    </li>
+    <li>
+      <a class="email"
+         href="mailto:?subject=What%20identifier%20is%20the%20most%20common%20in%20Julia%20code%3f%20The%20answer%20might%20surprise%20you%21&amp;body=http%3a%2f%2fkristofferc.github.io%2fpost%2ftokenize%2f">
+        <i class="fa fa-envelope"></i>
+      </a>
+    </li>
+  </ul>
+</div>
+
+
+  
+
+</div>
+
+
+    <div class="article-style" itemprop="articleBody">
+      
+
+<p><a href="https://github.com/KristofferC/Tokenize.jl" target="_blank"><em>Tokenize</em></a> is a Julia package to perform lexical analysis of Julia source code.
+Lexing, is the process of transforming raw source code (represented as normal text) into a sequence of <em>tokens</em> which is
+a string with an associated meaning. Meaning here could be if the string represent an operator, a keyword or a comment etc.</p>
+
+<p>The example below shows lexing (or tokenization) of some simple code.</p>
+
+<pre><code class="language-julia">julia&gt; using Tokenize
+
+julia&gt; collect(tokenize(&quot;&quot;&quot;
+       100
+       &quot;this is a string&quot;
+       'a'
+       type
+       foo
+       *
+       &quot;&quot;&quot;))
+13-element Array{Tokenize.Tokens.Token,1}:
+ 1,1-1,3          INTEGER        &quot;100&quot;
+ 1,4-2,0          WHITESPACE     &quot;\n&quot;
+ 2,1-2,18         STRING         &quot;\&quot;this is a string\&quot;&quot;
+ 2,19-3,0         WHITESPACE     &quot;\n&quot;
+ 3,1-3,3          CHAR           &quot;'a'&quot;
+ 3,4-4,0          WHITESPACE     &quot;\n&quot;
+ 4,1-4,4          KEYWORD        &quot;type&quot;
+ 4,5-5,0          WHITESPACE     &quot;\n&quot;
+ 5,1-5,3          IDENTIFIER     &quot;foo&quot;
+ 5,4-6,0          WHITESPACE     &quot;\n&quot;
+ 6,1-6,1          OP             &quot;*&quot;
+ 6,2-7,0          WHITESPACE     &quot;\n&quot;
+ 7,1-7,0          ENDMARKER      &quot;&quot;
+</code></pre>
+
+<p>The displayed array containing the tokens has three columns. The first column showing the location where the string of the token starts and ends,
+which is represented as the line number (row) and at how many characters into the line (columns) the token starts / ends.
+The second column shows the type (<em>kind</em>) of token and, finally, the right column shows the string the token contains.</p>
+
+<p>One of the different token kinds is the <em>identifier</em>. These are names that refer to different entities in the code.
+This includes variables, types, functions etc. Identifiers are chosen by the programmer,
+as opposed to keywords which are chosen by the developers of the language.
+Some questions I thought interesting are:</p>
+
+<ul>
+<li>What is the most common identifier in Julia base code. Has it changed from 0.5 to 0.6?</li>
+<li>How about packages? Is the source code there significantly different from the code in Julia base in terms of the identifiers used?</li>
+</ul>
+
+<p>The plan is to use <em>Tokenize</em> to lex both Julia base and a bunch of packages, count the number of occurrences of
+each identifier and then summarize this as a top 10 list.</p>
+
+<h2 id="a-julia-source-code-identifier-counter">A Julia source code identifier counter</h2>
+
+<p>First, let&rsquo;s create a simple counter type to keep track of how many times each identifier occur.
+This is a just a wrapper around a dictionary with a default value of 0 and a
+<code>count!</code> method that increments the counter for the supplied key:</p>
+
+<pre><code class="language-julia">immutable Counter{T}
+    d::Dict{T, Int}
+end
+Counter{T}(::Type{T})= Counter(Dict{T, Int}())
+
+Base.getindex{T}(c::Counter{T}, v::T) = get(c.d, v, 0)
+getdictionary(c::Counter) = c.d
+count!{T}(c::Counter{T}, v::T) = haskey(c.d, v) ? c.d[v] += 1 : c.d[v] = 1
+</code></pre>
+
+<p>A short example of the <code>Counter</code> type in action is showed below.</p>
+
+<pre><code class="language-julia">julia&gt; c = Counter(String)
+Counter{String}(Dict{String,Int64}())
+
+julia&gt; c[&quot;foo&quot;]
+0
+
+julia&gt; count!(c, &quot;foo&quot;); count!(c, &quot;foo&quot;);
+
+julia&gt; c[&quot;foo&quot;]
+2
+</code></pre>
+
+<p>Now, we need a function that tokenizes a file and counts the number of identifiers in it.
+The code for sucha function is shown below and a short explanation follows:</p>
+
+<pre><code class="language-julia">function count_tokentypes!(counter, filepath, tokentype)
+    f = open(filepath, &quot;r&quot;)
+    for token in tokenize(f)
+        if Tokens.kind(token) == tokentype
+            count!(counter, untokenize(token))
+        end
+    end
+    return counter
+end
+</code></pre>
+
+<p>This opens the file <code>filepath</code>, loops over the tokens and if the kind of token is the <code>tokentype</code>
+the <code>counter</code> is incremented with the string of the token (extracted with <code>untokenize</code>) as the key.
+In <em>Tokenize</em> each type of token is represented by an enum, and the one corresponding to identifiers is named
+<code>Tokens.IDENTIFIER</code>.</p>
+
+<p>As an example, we could run the function on a short file in Base (<code>nofloat_hashing.jl</code>):</p>
+
+<pre><code class="language-julia">julia&gt; BASEDIR =  joinpath(JULIA_HOME, Base.DATAROOTDIR, &quot;julia&quot;, &quot;base&quot;)
+
+julia&gt; filepath = joinpath(BASEDIR, &quot;nofloat_hashing.jl&quot;);
+
+julia&gt; c = Counter(String);
+
+julia&gt; count_tokentypes!(c, filepath, Tokens.IDENTIFIER)
+Counter{String}(Dict(&quot;b&quot;=&gt;2,&quot;x&quot;=&gt;8,&quot;a&quot;=&gt;2,&quot;h&quot;=&gt;8,&quot;UInt32&quot;=&gt;1,&quot;UInt16&quot;=&gt;1,&quot;hx&quot;=&gt;3,&quot;abs&quot;=&gt;1,&quot;Int8&quot;=&gt;1,&quot;Int16&quot;=&gt;1…))
+
+julia&gt; c[&quot;h&quot;]
+8
+</code></pre>
+
+<p>We see here that there are 8 occurrences of the literal <code>h</code> in the file.</p>
+
+<p>The next step is to apply the <code>count_tokentypes</code> function to <em>all</em> the files in the base directory.
+To that end, we create the <code>applytofolder</code> function:</p>
+
+<pre><code class="language-julia">function applytofolder(path, f)
+    for (root, dirs, files) in walkdir(path)
+        for file in files
+            f(joinpath(root, file))
+        end
+    end
+end
+</code></pre>
+
+<p>It takes a <code>path</code> to a folder and applies the function <code>f</code> on each filepath.
+The <code>walkdir</code> function works recursively so each file will be visited this way.</p>
+
+<p>Finally, we create a <code>Counter</code> and call the previously created <code>count_tokentypes</code> on all files
+that end with <code>&quot;.jl&quot;</code> using the <code>applytofolder</code> function:</p>
+
+<pre><code class="language-julia">julia&gt; BASEDIR = joinpath(JULIA_HOME, Base.DATAROOTDIR, &quot;julia&quot;, &quot;base&quot;)
+
+julia&gt; c = Counter(String)
+
+julia&gt; applytofolder(BASEDIR,
+                     function(file)
+                         if endswith(file, &quot;.jl&quot;)
+                             count_tokentypes!(c, file, Tokens.IDENTIFIER)
+                         end
+                     end)
+</code></pre>
+
+<p>The counter <code>c</code> now contains the count of all identifiers in the base folder:</p>
+
+<pre><code class="language-julia">julia&gt; c[&quot;_uv_hook_close&quot;]
+12
+
+julia&gt; c[&quot;x&quot;]
+7643
+
+julia&gt; c[&quot;str&quot;]
+230
+</code></pre>
+
+<h2 id="analysis">Analysis</h2>
+
+<p>We are interested in the most common identifiers so we create a function that
+extracts the <code>n</code> most common identifiers as two vectors.
+One with the identifiers and one with the counts:</p>
+
+<pre><code class="language-julia">function getntop(c::Counter, n)
+    vec = Tuple{String, Int}[]
+    for (k, v) in getdictionary(c)
+        push!(vec, (k, v))
+    end
+    sort!(vec, by = x -&gt; x[2], rev = true)
+    vec_trunc = vec[1:n-1]
+    identifiers = [v[1] for v in vec_trunc]
+    counts      = [v[2] for v in vec_trunc]
+    return identifiers, counts
+end
+</code></pre>
+
+<p>To visualize this we use the excellent plotting package
+ <a href="https://github.com/Evizero/UnicodePlots.jl" target="_blank"><em>UnicodePlots</em></a>:</p>
+
+<pre><code class="language-julia">julia&gt; using UnicodePlots
+
+julia&gt; identifiers, counts = getntop(c, 10)
+
+julia&gt; barplot(identifiers, counts, title = &quot;Base identifiers&quot;)
+                   Base identifiers
+       ┌────────────────────────────────────────┐
+     x │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 7643 │
+     T │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 7202   │
+     A │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 7001    │
+     i │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 5119            │
+   Ptr │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 4239                │
+     s │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 4128                 │
+     n │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 3650                   │
+     B │▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 3143                     │
+    io │▪▪▪▪▪▪▪▪▪▪▪▪ 2714                       │
+       └────────────────────────────────────────┘
+</code></pre>
+
+<p>So there we have it, <code>x</code> is the winner, closely followed by <code>T</code> and <code>A</code>.
+This is perhaps not very surprising; <code>x</code> is a very common variable name,
+<code>T</code> is used a lot in parametric functions and <code>A</code> is used a lot in the
+Linear Algebra code base which is quite large.</p>
+
+<h3 id="difference-vs-0-6">Difference vs. 0.6</h3>
+
+<p>The plot below shows the same experiment repeated on the 0.6 code base:</p>
+
+<pre><code class="language-julia">               Base identifiers 0.6
+       ┌────────────────────────────────────────┐ 
+     x │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 7718 │ 
+     A │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 7313   │ 
+     T │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 6932    │ 
+     i │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 5242            │ 
+   Ptr │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 4147                 │ 
+     s │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 4093                 │ 
+     n │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 3650                   │ 
+     B │▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 3174                     │ 
+    io │▪▪▪▪▪▪▪▪▪▪▪▪▪ 2933                      │ 
+       └────────────────────────────────────────┘ 
+</code></pre>
+
+<p>Most of the results are relative counts are similar between 0.5 and 0.6 with the exception that <code>A</code> and <code>T</code> swapped place.
+In fact, the number of <code>T</code> identifers have actually decreased with almost 300 counts.
+What could have caused this?
+The answer is a new syntactic sugar feature available in Julia 0.6 which was implemented by Steven G. Johnson in <a href="https://github.com/JuliaLang/julia/pull/20414" target="_blank">PR #20414</a> .
+This allowed the parametric function with the syntax</p>
+
+<pre><code class="language-jl">foo{T &lt;: Real}(Point{T}) = ...
+</code></pre>
+
+<p>to instead be written more tersely as</p>
+
+<pre><code>foo(Point{&lt;:Real})...
+</code></pre>
+
+<p>In <a href="https://github.com/JuliaLang/julia/pull/20446" target="_blank">PR #20446</a> Pablo Zubieta went through the Julia code base and updated
+many of the function signatures to use this new syntax.
+Since <code>T</code> is a very common name to use for the parameter, the counts of <code>T</code> significantly decreased.
+And this is how <code>A</code> managed to win over <code>T</code> in 0.6 in the prestigeful &ldquo;most common identifier&rdquo;-competition.</p>
+
+<h3 id="julia-packages">Julia packages.</h3>
+
+<p>We now perform the same experiment but on the Julia package directory. For me, this includes around 130 packages:</p>
+
+<pre><code class="language-julia">julia&gt; length(readdir(Pkg.dir()))
+137
+</code></pre>
+
+<p>The results are:</p>
+
+<pre><code class="language-julia">                   Package identifiers
+        ┌────────────────────────────────────────┐ 
+      T │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 15425 │ 
+      x │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 15062  │ 
+   test │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 13624     │ 
+      i │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 9989              │ 
+      d │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 9562               │ 
+      A │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 8280                 │ 
+    RGB │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 8041                  │ 
+      a │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 7144                    │ 
+      n │▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 6470                     │ 
+        └────────────────────────────────────────┘ 
+</code></pre>
+
+<p>When we counted the Julia base folder we excluded all the files used for unit testing.
+For packages, these files are included and clearly <code>test</code>, most commonly used in the <code>@test</code> macro, is
+unsurprisingly very common. <code>T</code>, <code>x</code> and <code>i</code> are common in packages and base but for some reason
+the variable <code>d</code> is more common in packages than in julia base.</p>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>Doing these type of investigations has perhaps little practical use but it is, at leat to me, a lot of fun.
+Feel free to tweak the code to find the most common string literal (<code>Tokens.STRING</code>) or perhaps most common integer (`<code>Tokens.INTEGER</code>)
+or anything else you can come up with.</p>
+
+<p>Below is a wordcloud I made with the top 50 identifiers in Julia base.</p>
+
+
+<figure >
+    
+        <img src="/img/wordcloud.png" />
+    
+    
+</figure>
+
+
+    </div>
+
+  </article>
+
+  <nav>
+  <ul class="pager">
+    
+    <li class="previous"><a href="http://kristofferc.github.io/post/vectorization_performance_study/"><span
+      aria-hidden="true">&larr;</span> Case study: Improving performance of a code written in Matlab style</a></li>
+    
+
+    
+  </ul>
+</nav>
+
+  
+<section id="comments">
+  <div id="disqus_thread">
+    <div id="disqus_thread"></div>
+<script type="text/javascript">
+    var disqus_shortname = 'kristoffer-carlsson';
+    var disqus_identifier = 'http:\/\/kristofferc.github.io\/post\/tokenize\/';
+    var disqus_title = 'What identifier is the most common in Julia code? The answer might surprise you!';
+    var disqus_url = 'http:\/\/kristofferc.github.io\/post\/tokenize\/';
+
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+  </div>
+</section>
+
+
+
+</div>
+<footer class="site-footer">
+  <div class="container">
+    <p class="powered-by">
+
+      &copy; 2016 Kristoffer Carlsson &middot; 
+
+      Powered by the <a href="https://github.com/gcushen/hugo-academic" target="_blank">Academic
+      theme</a> for <a href="http://gohugo.io" target="_blank">Hugo</a>.
+
+      <span class="pull-right" aria-hidden="true">
+        <a href="#" id="back_to_top">
+          <span class="button_icon">
+            <i class="fa fa-chevron-up fa-2x"></i>
+          </span>
+        </a>
+      </span>
+
+    </p>
+  </div>
+</footer>
+
+    <script src="//cdnjs.cloudflare.com/ajax/libs/gsap/1.18.4/TweenMax.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/gsap/latest/plugins/ScrollToPlugin.min.js"></script>
+    <script src="/js/jquery-1.12.3.min.js"></script>
+    <script src="/js/bootstrap.min.js"></script>
+    <script src="/js/isotope.pkgd.min.js"></script>
+    <script src="/js/hugo-academic.js"></script>
+    
+
+    
+    <script>
+        (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+        (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+        m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+        })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+        ga('create', 'UA-89496017-1', 'auto');
+        ga('send', 'pageview');
+
+         
+        var links = document.querySelectorAll('a');
+        Array.prototype.map.call(links, function(item) {
+            if (item.host != document.location.host) {
+                item.addEventListener('click', function() {
+                    var action = item.getAttribute('data-action') || 'follow';
+                    ga('send', 'event', 'outbound', action, item.href);
+                });
+            }
+        });
+    </script>
+    
+
+    
+    <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.3.0/highlight.min.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+
+    
+    
+    <script type="text/x-mathjax-config">
+        MathJax.Hub.Config({ tex2jax: { inlineMath: [['$','$'], ['\\(','\\)']] } });
+    </script>
+    <script async src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_CHTML"></script>
+    
+
+  </body>
+</html>
+
