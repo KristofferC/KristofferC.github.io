@@ -19,8 +19,8 @@
       <description>
 
 &lt;p&gt;&lt;a href=&#34;https://github.com/KristofferC/Tokenize.jl&#34; target=&#34;_blank&#34;&gt;&lt;em&gt;Tokenize&lt;/em&gt;&lt;/a&gt; is a Julia package to perform lexical analysis of Julia source code.
-Lexing, is the process of transforming raw source code (represented as normal text) into a sequence of &lt;em&gt;tokens&lt;/em&gt; which is
-a string with an associated meaning. Meaning here could be if the string represent an operator, a keyword or a comment etc.&lt;/p&gt;
+Lexing is the process of transforming raw source code (represented as normal text) into a sequence of &lt;em&gt;tokens&lt;/em&gt; which is
+a string with an associated meaning. &amp;ldquo;Meaning&amp;rdquo; could here be if the string represent an operator, a keyword, a comment etc.&lt;/p&gt;
 
 &lt;p&gt;The example below shows lexing (or tokenization) of some simple code.&lt;/p&gt;
 
@@ -50,27 +50,27 @@ julia&amp;gt; collect(tokenize(&amp;quot;&amp;quot;&amp;quot;
  7,1-7,0          ENDMARKER      &amp;quot;&amp;quot;
 &lt;/code&gt;&lt;/pre&gt;
 
-&lt;p&gt;The displayed array containing the tokens has three columns. The first column showing the location where the string of the token starts and ends,
+&lt;p&gt;The displayed array containing the tokens has three columns. The first column shows the location where the string of the token starts and ends,
 which is represented as the line number (row) and at how many characters into the line (columns) the token starts / ends.
 The second column shows the type (&lt;em&gt;kind&lt;/em&gt;) of token and, finally, the right column shows the string the token contains.&lt;/p&gt;
 
 &lt;p&gt;One of the different token kinds is the &lt;em&gt;identifier&lt;/em&gt;. These are names that refer to different entities in the code.
-This includes variables, types, functions etc. Identifiers are chosen by the programmer,
-as opposed to keywords which are chosen by the developers of the language.
+This includes variables, types, functions etc. The name of the identifiers are chosen by the programmer,
+in contrast to keywords which are chosen by the developers of the language.
 Some questions I thought interesting are:&lt;/p&gt;
 
 &lt;ul&gt;
-&lt;li&gt;What is the most common identifier in Julia base code. Has it changed from 0.5 to 0.6?&lt;/li&gt;
-&lt;li&gt;How about packages? Is the source code there significantly different from the code in Julia base in terms of the identifiers used?&lt;/li&gt;
+&lt;li&gt;What is the most common identifier in the Julia Base code (the code making up the standard library). Has it changed from 0.5 to 0.6?&lt;/li&gt;
+&lt;li&gt;How about packages? Is the source code there significantly different from the code in Julia Base in terms of the identifiers used?&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;p&gt;The plan is to use &lt;em&gt;Tokenize&lt;/em&gt; to lex both Julia base and a bunch of packages, count the number of occurrences of
+&lt;p&gt;The plan is to use &lt;em&gt;Tokenize&lt;/em&gt; to lex both Julia Base and a bunch of packages, count the number of occurrences of
 each identifier and then summarize this as a top 10 list.&lt;/p&gt;
 
 &lt;h2 id=&#34;a-julia-source-code-identifier-counter&#34;&gt;A Julia source code identifier counter&lt;/h2&gt;
 
 &lt;p&gt;First, let&amp;rsquo;s create a simple counter type to keep track of how many times each identifier occur.
-This is a just a wrapper around a dictionary with a default value of 0 and a
+This is a just a wrapper around a dictionary with a default value of &lt;code&gt;0&lt;/code&gt; and a
 &lt;code&gt;count!&lt;/code&gt; method that increments the counter for the supplied key:&lt;/p&gt;
 
 &lt;pre&gt;&lt;code class=&#34;language-julia&#34;&gt;immutable Counter{T}
@@ -98,7 +98,7 @@ julia&amp;gt; c[&amp;quot;foo&amp;quot;]
 &lt;/code&gt;&lt;/pre&gt;
 
 &lt;p&gt;Now, we need a function that tokenizes a file and counts the number of identifiers in it.
-The code for sucha function is shown below and a short explanation follows:&lt;/p&gt;
+The code for such a function is shown below and a short explanation follows:&lt;/p&gt;
 
 &lt;pre&gt;&lt;code class=&#34;language-julia&#34;&gt;function count_tokentypes!(counter, filepath, tokentype)
     f = open(filepath, &amp;quot;r&amp;quot;)
@@ -111,12 +111,12 @@ The code for sucha function is shown below and a short explanation follows:&lt;/
 end
 &lt;/code&gt;&lt;/pre&gt;
 
-&lt;p&gt;This opens the file &lt;code&gt;filepath&lt;/code&gt;, loops over the tokens and if the kind of token is the &lt;code&gt;tokentype&lt;/code&gt;
+&lt;p&gt;This opens the file at the path &lt;code&gt;filepath&lt;/code&gt;, loops over the tokens, and if the kind of token is the &lt;code&gt;tokentype&lt;/code&gt;
 the &lt;code&gt;counter&lt;/code&gt; is incremented with the string of the token (extracted with &lt;code&gt;untokenize&lt;/code&gt;) as the key.
 In &lt;em&gt;Tokenize&lt;/em&gt; each type of token is represented by an enum, and the one corresponding to identifiers is named
 &lt;code&gt;Tokens.IDENTIFIER&lt;/code&gt;.&lt;/p&gt;
 
-&lt;p&gt;As an example, we could run the function on a short file in Base (&lt;code&gt;nofloat_hashing.jl&lt;/code&gt;):&lt;/p&gt;
+&lt;p&gt;As an example, we could run the function on a short file in base (&lt;code&gt;nofloat_hashing.jl&lt;/code&gt;):&lt;/p&gt;
 
 &lt;pre&gt;&lt;code class=&#34;language-julia&#34;&gt;julia&amp;gt; BASEDIR =  joinpath(JULIA_HOME, Base.DATAROOTDIR, &amp;quot;julia&amp;quot;, &amp;quot;base&amp;quot;)
 
@@ -131,7 +131,7 @@ julia&amp;gt; c[&amp;quot;h&amp;quot;]
 8
 &lt;/code&gt;&lt;/pre&gt;
 
-&lt;p&gt;We see here that there are 8 occurrences of the literal &lt;code&gt;h&lt;/code&gt; in the file.&lt;/p&gt;
+&lt;p&gt;We see here that there are 8 occurrences of the identifier &lt;code&gt;h&lt;/code&gt; in the file.&lt;/p&gt;
 
 &lt;p&gt;The next step is to apply the &lt;code&gt;count_tokentypes&lt;/code&gt; function to &lt;em&gt;all&lt;/em&gt; the files in the base directory.
 To that end, we create the &lt;code&gt;applytofolder&lt;/code&gt; function:&lt;/p&gt;
@@ -145,7 +145,7 @@ To that end, we create the &lt;code&gt;applytofolder&lt;/code&gt; function:&lt;/
 end
 &lt;/code&gt;&lt;/pre&gt;
 
-&lt;p&gt;It takes a &lt;code&gt;path&lt;/code&gt; to a folder and applies the function &lt;code&gt;f&lt;/code&gt; on each filepath.
+&lt;p&gt;It takes a &lt;code&gt;path&lt;/code&gt; to a folder and applies the function &lt;code&gt;f&lt;/code&gt; on each file in that path.
 The &lt;code&gt;walkdir&lt;/code&gt; function works recursively so each file will be visited this way.&lt;/p&gt;
 
 &lt;p&gt;Finally, we create a &lt;code&gt;Counter&lt;/code&gt; and call the previously created &lt;code&gt;count_tokentypes&lt;/code&gt; on all files
@@ -239,11 +239,11 @@ Linear Algebra code base which is quite large.&lt;/p&gt;
        └────────────────────────────────────────┘ 
 &lt;/code&gt;&lt;/pre&gt;
 
-&lt;p&gt;Most of the results are relative counts are similar between 0.5 and 0.6 with the exception that &lt;code&gt;A&lt;/code&gt; and &lt;code&gt;T&lt;/code&gt; swapped place.
-In fact, the number of &lt;code&gt;T&lt;/code&gt; identifers have actually decreased with almost 300 counts.
+&lt;p&gt;Most of the counts are relatively similar between 0.5 and 0.6 with the exception that &lt;code&gt;A&lt;/code&gt; overtook &lt;code&gt;T&lt;/code&gt; for the second place.
+In fact, the number of &lt;code&gt;T&lt;/code&gt; identifers have decreased with almost 300 counts!
 What could have caused this?
 The answer is a new syntactic sugar feature available in Julia 0.6 which was implemented by Steven G. Johnson in &lt;a href=&#34;https://github.com/JuliaLang/julia/pull/20414&#34; target=&#34;_blank&#34;&gt;PR #20414&lt;/a&gt; .
-This allowed the parametric function with the syntax&lt;/p&gt;
+This allowed a parametric function with the syntax&lt;/p&gt;
 
 &lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;foo{T &amp;lt;: Real}(Point{T}) = ...
 &lt;/code&gt;&lt;/pre&gt;
@@ -283,9 +283,9 @@ And this is how &lt;code&gt;A&lt;/code&gt; managed to win over &lt;code&gt;T&lt;
 &lt;/code&gt;&lt;/pre&gt;
 
 &lt;p&gt;When we counted the Julia base folder we excluded all the files used for unit testing.
-For packages, these files are included and clearly &lt;code&gt;test&lt;/code&gt;, most commonly used in the &lt;code&gt;@test&lt;/code&gt; macro, is
-unsurprisingly very common. &lt;code&gt;T&lt;/code&gt;, &lt;code&gt;x&lt;/code&gt; and &lt;code&gt;i&lt;/code&gt; are common in packages and base but for some reason
-the variable &lt;code&gt;d&lt;/code&gt; is more common in packages than in julia base.&lt;/p&gt;
+For packages, these files are included and clearly &lt;code&gt;test&lt;/code&gt;, used in the &lt;code&gt;@test&lt;/code&gt; macro, is
+unsurprisingly very common. &lt;code&gt;T&lt;/code&gt;, &lt;code&gt;x&lt;/code&gt; and &lt;code&gt;i&lt;/code&gt; are common in packages and Base but for some reason
+the variable &lt;code&gt;d&lt;/code&gt; is more common in packages than in Base.&lt;/p&gt;
 
 &lt;h2 id=&#34;conclusion&#34;&gt;Conclusion&lt;/h2&gt;
 
@@ -293,7 +293,7 @@ the variable &lt;code&gt;d&lt;/code&gt; is more common in packages than in julia
 Feel free to tweak the code to find the most common string literal (&lt;code&gt;Tokens.STRING&lt;/code&gt;) or perhaps most common integer (`&lt;code&gt;Tokens.INTEGER&lt;/code&gt;)
 or anything else you can come up with.&lt;/p&gt;
 
-&lt;p&gt;Below is a wordcloud I made with the top 50 identifiers in Julia base.&lt;/p&gt;
+&lt;p&gt;Below is a wordcloud I made with the top 50 identifiers in Julia Base.&lt;/p&gt;
 
 
 &lt;figure &gt;
@@ -499,6 +499,56 @@ Timing the new function results in&lt;/p&gt;
       <guid>http://kristofferc.github.io/publication/clothing-search/</guid>
       <description>&lt;p&gt;More detail can easily be written here using &lt;em&gt;Markdown&lt;/em&gt; and $\rm \LaTeX$ math code.&lt;/p&gt;
 </description>
+    </item>
+    
+    <item>
+      <title></title>
+      <link>http://kristofferc.github.io/post/crayons/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>http://kristofferc.github.io/post/crayons/</guid>
+      <description>&lt;p&gt;using Crayons
+using Colors&lt;/p&gt;
+
+&lt;p&gt;using TestImages
+using Images
+using Colors
+using Crayons&lt;/p&gt;
+
+&lt;p&gt;Crayons.Crayon(rgb::RGB) = Crayon(foreground = (round(Int, 255 *rgb.r),
+                                                round(Int, 255 *rgb.g),
+                                                round(Int, 255 *rgb.b)))&lt;/p&gt;
+
+&lt;p&gt;print_with_colormap(str::String, cmapstr::String) = print_with_colormap(STDOUT, str, cmapstr)&lt;/p&gt;
+
+&lt;p&gt;function print_with_colormap(io::IO, str::String, cmapstr::String)
+    cmap = colormap(cmapstr, strwidth(str))
+    for (col, char) in zip(cmap, str)
+        print(io, Crayon(col)(string(char)))
+    end
+end&lt;/p&gt;
+
+&lt;p&gt;show_image(img) = show_image(STDOUT, img)
+function show_image(io::IO, img)
+    c = Crayon()
+    for j in 1:size(img, 2)
+        for i in 1:size(img, 1)
+            c = Crayon(img[i,j])
+            print(io, c, &amp;ldquo;██&amp;rdquo;)
+        end
+        print(io, &amp;ldquo;\n&amp;rdquo;)
+    end
+end&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title></title>
+      <link>http://kristofferc.github.io/post/julia_repl_06/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>http://kristofferc.github.io/post/julia_repl_06/</guid>
+      <description></description>
     </item>
     
   </channel>
