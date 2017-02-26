@@ -2,7 +2,7 @@
 date = "2017-02-26T15:00:00"
 draft = false
 tags = ["lexing", "tokenization", "julia"]
-title = "What identifier is the most common in Julia code? The answer might surprise you!"
+title = "What identifier is the most common in Julia? The answer might surprise you!"
 math = true
 summary = """
 The julia package *Tokenize* is used to perform lexical analysis on Julia source code
