@@ -11,7 +11,7 @@
     <atom:link href="/post/index.xml" rel="self" type="application/rss+xml" />
     
     <item>
-      <title>What identifier is the most common in Julia code? The answer might surprise you!</title>
+      <title>What identifier is the most common in Julia? The answer might surprise you!</title>
       <link>http://kristofferc.github.io/post/tokenize/</link>
       <pubDate>Sun, 26 Feb 2017 15:00:00 +0000</pubDate>
       
