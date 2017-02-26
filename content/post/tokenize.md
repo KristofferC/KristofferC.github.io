@@ -296,7 +296,7 @@ the variable `d` is more common in packages than in Base.
 
 ## Conclusion
 
-Doing these type of investigations has perhaps little practical use but it is, at leat to me, a lot of fun.
+Doing these type of investigations has perhaps little practical use but it is, at least to me, a lot of fun.
 Feel free to tweak the code to find the most common string literal (`Tokens.STRING`) or perhaps most common integer (``Tokens.INTEGER`)
 or anything else you can come up with.
 
