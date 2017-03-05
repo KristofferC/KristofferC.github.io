@@ -501,55 +501,5 @@ Timing the new function results in&lt;/p&gt;
 </description>
     </item>
     
-    <item>
-      <title></title>
-      <link>http://kristofferc.github.io/post/crayons/</link>
-      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
-      
-      <guid>http://kristofferc.github.io/post/crayons/</guid>
-      <description>&lt;p&gt;using Crayons
-using Colors&lt;/p&gt;
-
-&lt;p&gt;using TestImages
-using Images
-using Colors
-using Crayons&lt;/p&gt;
-
-&lt;p&gt;Crayons.Crayon(rgb::RGB) = Crayon(foreground = (round(Int, 255 *rgb.r),
-                                                round(Int, 255 *rgb.g),
-                                                round(Int, 255 *rgb.b)))&lt;/p&gt;
-
-&lt;p&gt;print_with_colormap(str::String, cmapstr::String) = print_with_colormap(STDOUT, str, cmapstr)&lt;/p&gt;
-
-&lt;p&gt;function print_with_colormap(io::IO, str::String, cmapstr::String)
-    cmap = colormap(cmapstr, strwidth(str))
-    for (col, char) in zip(cmap, str)
-        print(io, Crayon(col)(string(char)))
-    end
-end&lt;/p&gt;
-
-&lt;p&gt;show_image(img) = show_image(STDOUT, img)
-function show_image(io::IO, img)
-    c = Crayon()
-    for j in 1:size(img, 2)
-        for i in 1:size(img, 1)
-            c = Crayon(img[i,j])
-            print(io, c, &amp;ldquo;██&amp;rdquo;)
-        end
-        print(io, &amp;ldquo;\n&amp;rdquo;)
-    end
-end&lt;/p&gt;
-</description>
-    </item>
-    
-    <item>
-      <title></title>
-      <link>http://kristofferc.github.io/post/julia_repl_06/</link>
-      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
-      
-      <guid>http://kristofferc.github.io/post/julia_repl_06/</guid>
-      <description></description>
-    </item>
-    
   </channel>
 </rss>
