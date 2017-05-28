@@ -22,6 +22,11 @@
   </url>
   
   <url>
+    <loc>http://kristofferc.github.io/post/julia_issue/</loc>
+    <lastmod>2017-05-28T15:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
     <loc>http://kristofferc.github.io/post/tokenize/</loc>
     <lastmod>2017-02-26T15:00:00+00:00</lastmod>
   </url>
@@ -57,6 +62,12 @@
   </url>
   
   <url>
+    <loc>http://kristofferc.github.io/tags/community/</loc>
+    <lastmod>2017-05-28T15:00:00+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
     <loc>http://kristofferc.github.io/tags/deep-learning/</loc>
     <lastmod>2016-04-27T00:00:00+00:00</lastmod>
     <priority>0</priority>
@@ -69,6 +80,12 @@
   </url>
   
   <url>
+    <loc>http://kristofferc.github.io/tags/github/</loc>
+    <lastmod>2017-05-28T15:00:00+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
     <loc>http://kristofferc.github.io/home/</loc>
     <lastmod>2016-04-20T00:00:00+00:00</lastmod>
     <priority>0</priority>
@@ -76,7 +93,7 @@
   
   <url>
     <loc>http://kristofferc.github.io/tags/julia/</loc>
-    <lastmod>2017-02-26T15:00:00+00:00</lastmod>
+    <lastmod>2017-05-28T15:00:00+00:00</lastmod>
     <priority>0</priority>
   </url>
   
@@ -99,6 +116,12 @@
   </url>
   
   <url>
+    <loc>http://kristofferc.github.io/tags/open-source/</loc>
+    <lastmod>2017-05-28T15:00:00+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
     <loc>http://kristofferc.github.io/tags/performance/</loc>
     <lastmod>2016-12-26T15:00:00+00:00</lastmod>
     <priority>0</priority>
@@ -106,7 +129,7 @@
   
   <url>
     <loc>http://kristofferc.github.io/post/</loc>
-    <lastmod>2017-02-26T15:00:00+00:00</lastmod>
+    <lastmod>2017-05-28T15:00:00+00:00</lastmod>
     <priority>0</priority>
   </url>
   

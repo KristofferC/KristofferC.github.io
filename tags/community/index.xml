@@ -1,0 +1,248 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Community on Kristoffer Carlsson</title>
+    <link>http://kristofferc.github.io/tags/community/index.xml</link>
+    <description>Recent content in Community on Kristoffer Carlsson</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <copyright>&amp;copy; 2016 Kristoffer Carlsson</copyright>
+    <atom:link href="/tags/community/index.xml" rel="self" type="application/rss+xml" />
+    
+    <item>
+      <title>Julia has an issue...</title>
+      <link>http://kristofferc.github.io/post/julia_issue/</link>
+      <pubDate>Sun, 28 May 2017 15:00:00 +0000</pubDate>
+      
+      <guid>http://kristofferc.github.io/post/julia_issue/</guid>
+      <description>
+
+&lt;p&gt;As most of us in the &lt;a href=&#34;https://julialang.org/&#34; target=&#34;_blank&#34;&gt;Julia&lt;/a&gt; community know, Julia has an issue.
+In fact, looking at the &lt;a href=&#34;https://github.com/JuliaLang/julia/&#34; target=&#34;_blank&#34;&gt;Julia repository&lt;/a&gt; we see that
+there are (at time of writing) 11865 issues, where 1872 are open and 9993 are closed.
+An interesting question to ask is:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;How has the ratio between open and closed issues varied over the development of Julia? And how about for pull requests (PRs)?&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;In this post, the aim is to answer the question above using the data that can be scraped from the GitHub repo.&lt;/p&gt;
+
+&lt;h2 id=&#34;getting-the-data&#34;&gt;Getting the data&lt;/h2&gt;
+
+&lt;p&gt;A large amount of data for a repository hosted on GitHub can be found via the &lt;a href=&#34;https://developer.github.com/v3/&#34; target=&#34;_blank&#34;&gt;GitHub API&lt;/a&gt;.
+The &lt;a href=&#34;https://github.com/JuliaWeb/GitHub.jl&#34; target=&#34;_blank&#34;&gt;&lt;em&gt;GitHub.jl&lt;/em&gt;&lt;/a&gt; package provides a convenient
+interface to communicate with this API from Julia.&lt;/p&gt;
+
+&lt;p&gt;Getting the data for the issues (and PRs) is as simple as:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;import GitHub
+myauth = GitHub.authenticate(ENV[&amp;quot;GITHUB_AUTH&amp;quot;])    
+repo = GitHub.repo(&amp;quot;JuliaLang/julia&amp;quot;)
+myparams = Dict(&amp;quot;state&amp;quot; =&amp;gt; &amp;quot;all&amp;quot;, &amp;quot;per_page&amp;quot; =&amp;gt; 100, &amp;quot;page&amp;quot; =&amp;gt; 1);
+issues, page_data = GitHub.issues(repo; params = myparams, auth = myauth)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;where I have created a &amp;ldquo;GitHub access token&amp;rdquo; and saved it in the environment variable &lt;code&gt;GITHUB_AUTH&lt;/code&gt;. Note here that the function name &lt;code&gt;GitHub.issues&lt;/code&gt; is a bit of a misnomer.
+What is returned is actually both issues and PRs.
+The variable &lt;code&gt;issues&lt;/code&gt; now contains a &lt;code&gt;Vector&lt;/code&gt; of all the issues and PRs made to the Julia repo.
+Each element in the vector is an &lt;code&gt;Issue&lt;/code&gt;, which is a &lt;code&gt;struct&lt;/code&gt; containing fields
+corresponding to the keys of the returned JSON from the GitHub REST API.
+In order to not have to rescrape the data every time Julia is started, it would be nice to
+store it to disk. The standard way of storing Julia data is by using the &lt;a href=&#34;https://github.com/JuliaIO/JLD.jl&#34; target=&#34;_blank&#34;&gt;*JLD.jl package&lt;/a&gt;.
+Unfortunately, &lt;em&gt;JLD.jl&lt;/em&gt; has some problems handling &lt;code&gt;Nullable&lt;/code&gt;&amp;rsquo;s (see &lt;a href=&#34;https://github.com/JuliaIO/JLD.jl/issues/47&#34; target=&#34;_blank&#34;&gt;this issue&lt;/a&gt;).
+However, there is an unregistered package called &lt;a href=&#34;https://github.com/simonster/JLD2.jl&#34; target=&#34;_blank&#34;&gt;&lt;em&gt;JLD2.jl&lt;/em&gt;&lt;/a&gt;
+that does support &lt;code&gt;Nullable&lt;/code&gt;&amp;rsquo;s. The code below uses &lt;em&gt;JLD2&lt;/em&gt; to save the issues to a &lt;code&gt;.jld&lt;/code&gt; file
+and then reload them again:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;using JLD2
+
+function save_issues(issues)
+    f = jldopen(&amp;quot;issues.jld&amp;quot;, &amp;quot;w&amp;quot;)
+    write(f, &amp;quot;issues&amp;quot;, issues)
+    close(f)
+end
+
+function load_issues()
+    f = jldopen(&amp;quot;issues.jld&amp;quot;, &amp;quot;r&amp;quot;)
+    issues = read(f, &amp;quot;issues&amp;quot;)
+    close(f)
+    return issues
+end
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;I put up the resulting &lt;code&gt;.jld&lt;/code&gt; file &lt;a href=&#34;http://KristofferC.github.io/issues.zip&#34;&gt;here&lt;/a&gt; if you don&amp;rsquo;t feel like doing the scraping yourself.&lt;/p&gt;
+
+&lt;h2 id=&#34;digression-a-datevector&#34;&gt;Digression: a &lt;code&gt;DateVector&lt;/code&gt;&lt;/h2&gt;
+
+&lt;p&gt;In this post we will deal with &lt;code&gt;Vector&lt;/code&gt;&amp;rsquo;s that are naturally indexed by
+&lt;code&gt;Date&lt;/code&gt;&amp;rsquo;s instead of standard integers starting at 1. Therefore, using the powerful
+&lt;a href=&#34;https://docs.julialang.org/en/release-0.5/manual/interfaces/#indexing&#34; target=&#34;_blank&#34;&gt;&lt;code&gt;AbstractVector&lt;/code&gt; interface&lt;/a&gt;
+we easily create a &lt;code&gt;Vector&lt;/code&gt; that can be indexed with single &lt;code&gt;Date&lt;/code&gt;&amp;rsquo;s ranges consisting of &lt;code&gt;Date&lt;/code&gt;&amp;rsquo;s etc.&lt;/p&gt;
+
+&lt;p&gt;The implementation below should be fairly self explanatory. We create the &lt;code&gt;DateVector&lt;/code&gt; struct
+wrapping a &lt;code&gt;Vector&lt;/code&gt; and two &lt;code&gt;Date&lt;/code&gt;&amp;rsquo;s (the start and end date) and define a minimum amount of methods needed.
+&lt;code&gt;Vector&lt;/code&gt;&amp;rsquo;s with non conventional indices are still quite new in Julia so not everything work
+perfectly with them. Here, we just implement the functionality needed
+to set and retrieve data using indexing with &lt;code&gt;Date&lt;/code&gt;s.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;struct DateVector{T} &amp;lt;: AbstractVector{T}
+    v::Vector{T}
+    startdate::Date
+    enddate::Date
+
+    function DateVector(v::Vector{T}, startdate::Date, enddate::Date) where T
+        len = (enddate - startdate) ÷ Dates.Day(1) + 1
+        if length(v) != len
+            throw(ArgumentError(&amp;quot;length of vector v $(length(v)) not equal to date range $len&amp;quot;))
+        end
+        new{T}(v, startdate, enddate)
+    end
+end
+
+Base.endof(dv::DateVector) = dv.enddate
+Base.indices(dv::DateVector) = (dv.startdate:dv.enddate,)
+Base.getindex(dv::DateVector, date::Date) = dv.v[(date - dv.startdate) ÷ Dates.Day(1) + 1]
+Base.setindex!(dv::DateVector, v, date::Date) = dv.v[(date - dv.startdate) ÷ Dates.Day(1) + 1] = v
+Base.checkindex(::Type{Bool}, d::Range{Date}, v::Range{Date}) = length(v) == 0 || (first(v) in d &amp;amp;&amp;amp; last(v) in d)
+Base.Array(dv::DateVector) = dv.v
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;The &lt;code&gt;DateVector&lt;/code&gt; can now be seen in action by for example indexing into it
+with a &lt;code&gt;Range&lt;/code&gt; of &lt;code&gt;Date&lt;/code&gt;&amp;rsquo;s:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;julia&amp;gt; v = rand(10);
+
+julia&amp;gt; dv = DateVector(v, Date(&amp;quot;2015-01-01&amp;quot;), Date(&amp;quot;2015-01-10&amp;quot;));
+
+julia&amp;gt; dv[Date(&amp;quot;2015-01-02&amp;quot;):Date(&amp;quot;2015-01-05&amp;quot;)]
+4-element Array{Float64,1}:
+ 0.299136
+ 0.898991
+ 0.0626245
+ 0.585839
+
+julia&amp;gt; v[2:5]
+4-element Array{Float64,1}:
+ 0.299136
+ 0.898991
+ 0.0626245
+ 0.585839
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h2 id=&#34;total-number-of-opened-and-closed-issues-prs-over-time&#34;&gt;Total number of opened and closed issues / PRs over time&lt;/h2&gt;
+
+&lt;p&gt;For a given issue we can check the time it was created, what state it is in (open / closed),
+what time it was eventually closed and if it is, in fact, a pull request and not an issue:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;julia&amp;gt; get(issues[1].created_at)
+2017-05-23T18:09:45
+
+julia&amp;gt; get(issues[1].state)
+&amp;quot;open&amp;quot;
+
+julia&amp;gt; isnull(issues[1].closed_at)
+true
+
+julia&amp;gt; isnull(issues[1].pull_request) # pull_request is null so this is an issue
+true
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;It is now quite easy to write a function that takes an issue and returns two &lt;code&gt;Date&lt;/code&gt;-intervals, the first
+for when the issue was opened, and the second for when it was closed up until today.
+If the issue is still open, we make sure to return an empty interval for the closed period.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;function open_closed_range(issue)
+    opened = Date(get(issue.created_at))
+    if get(issue.state) == &amp;quot;closed&amp;quot;
+        closed = Date(get(issue.closed_at))
+    else
+        closed = Date(now())
+    end
+    return opened:closed, (closed + Dates.Day(1)):Date(now())
+end
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;As an example, we can test this function on an issue:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;julia&amp;gt; open_closed_range(issues[200])
+(2017-05-13:1 day:2017-05-14, 2017-05-15:1 day:2017-05-29)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;So, here we see that the issue was opened between 2017-05-13 and 2017-05-14 (and then got closed).
+Now, we can simply create two &lt;code&gt;DateVector&lt;/code&gt;&amp;rsquo;s, one that will contain the total number of opened
+issues and the second the total number of closed issues / PRs for a given date&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;function count_closed_opened(PRs::Bool, issues)
+    min_date = Date(get(minimum(issue.created_at for issue in issues)))
+    days_since_min_date = (Date(now()) - min_date) ÷ Dates.Day(1) + 1
+    closed_counter = DateVector(zeros(Int, days_since_min_date), min_date, Date(now()))
+    open_counter = DateVector(zeros(Int, days_since_min_date), min_date, Date(now()))
+
+    for issue in filter(x -&amp;gt; !isnull(x.pull_request) == PRs, issues)
+        open_range, closed_range = open_closed_range(issue)
+        closed_counter[closed_range] += 1
+        open_counter[open_range] += 1
+    end
+
+    return open_counter, closed_counter
+end
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;For a given date, the number of opened and closed issues are now readily available:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;julia&amp;gt; opened, closed = count_closed_opened(false, issues);
+
+julia&amp;gt; opened[Date(&amp;quot;2016-01-1&amp;quot;)]
+288
+
+julia&amp;gt; closed[Date(&amp;quot;2016-01-1&amp;quot;)]
+5713
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;We could plot these now using one of our favorite plotting packages. I am personally a LaTeX fan and one of the popular
+plotting packages for LaTeX is pgfplots. &lt;a href=&#34;https://github.com/KristofferC/PGFPlotsX&#34; target=&#34;_blank&#34;&gt;&lt;em&gt;PGFPlotsX.jl&lt;/em&gt;&lt;/a&gt; is a Julia package that makes
+it quite easy to interface with pgfplots so this is what I used here. The total number of open and
+closed issues for different dates is shown below.&lt;/p&gt;
+
+
+&lt;figure &gt;
+    
+        &lt;img src=&#34;http://KristofferC.github.io/img/open_close.png&#34; /&gt;
+    
+    
+&lt;/figure&gt;
+
+
+&lt;p&gt;We can see that in the early development of Julia, PRs was not really used.
+Also, the number of closed issues and PRs seem to grow at approximately the same rate.
+A noticeable difference is in the number of &lt;em&gt;opened&lt;/em&gt; issues and PRs. Open PRs accumulate
+significantly slower than the number of open issues. This is likely because an open PR
+become stale quite quickly while issues can take a long time to fix, or does not really have
+a clear actionable purpose.&lt;/p&gt;
+
+&lt;p&gt;Let&amp;rsquo;s plot the ratio between open and closed issues / PRs:&lt;/p&gt;
+
+
+&lt;figure &gt;
+    
+        &lt;img src=&#34;http://KristofferC.github.io/img/ratio.png&#34; /&gt;
+    
+    
+&lt;/figure&gt;
+
+
+&lt;p&gt;To reduce some of the noise, I started the plot at 2013-06-01. The ratio between open to closed issues seems to slowly increase while for PRs, the number have stabilized at around 0.05.&lt;/p&gt;
+
+&lt;h2 id=&#34;conclusions&#34;&gt;Conclusions&lt;/h2&gt;
+
+&lt;p&gt;Using the GitHub API it is quite easy to do some data anlysis on a repo.
+It is hard to say how much actual usefulness can be extracted from the data here
+but sometimes it is fun to just hack on data.
+Possible future work could be to do the same analysis here but for other programming language repos.
+Right now, looking at e.g. the &lt;a href=&#34;https://github.com/rust-lang/rust&#34; target=&#34;_blank&#34;&gt;Rust repo&lt;/a&gt; they have an open to closed PR ratio of 63 / 21200 ≈ 0.003 which is 20 times lower than Julia. Does this mean that the Julia community need to be better at reviewing PRs to make sure they eventually get merged / closed? Or is the barrier to open a PR to Rust higher so that only PRs with high success of merging gets opened?&lt;/p&gt;
+</description>
+    </item>
+    
+  </channel>
+</rss>
