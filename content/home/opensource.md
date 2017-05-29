@@ -19,17 +19,17 @@ Here are some of the open source projects I have created or been involved with:
 ## Julia
 
 * [NearestNeighbors.jl](https://github.com/KristofferC/NearestNeighbors.jl) -- High performance nearest neighbor data structures and algorithms.
-* [ContMechTensors.jl](https://github.com/KristofferC/ContMechTensors.jl) -- Efficient computations with symmetric and non-symmetric tensors with support for automatic differentiation.
+* [Tensors.jl](https://github.com/KristofferC/Tensors.jl) -- Efficient computations with symmetric and non-symmetric tensors with support for automatic differentiation.
 * [OhMyREPL.jl](https://github.com/KristofferC/OhMyREPL.jl) -- Syntax highlighting and other enhancements for the Julia REPL.
 * [Crayons.jl](https://github.com/KristofferC/Crayons.jl) -- Colored and styled strings for terminals.
+* [PGFPlotsX.jl](https://github.com/KristofferC/PGFPlotsX) -- Seamlessly create plots in Julia using the PGFPlots LaTeX package.
 * [Pardiso.jl](https://github.com/JuliaSparse/Pardiso.jl) -- Calling the PARDISO sparse solver library.
 * [Tokenize.jl](https://github.com/KristofferC/Tokenize.jl) --Tokenization for Julia source code.
 * [TimerOutputs.jl](https://github.com/KristofferC/TimerOutputs.jl) -- Formatted output of timed sections.
 * [BlockArrays.jl](https://github.com/KristofferC/BlockArrays.jl) -- Interface for blocked arrays.
-* [MMA.jl](https://github.com/KristofferC/MMA.jl) -- The "Method of Moving Asymptotes"-algorithm.
 * [Distances.jl](https://github.com/JuliaStats/Distances.jl) -- A Julia package for evaluating distances(metrics) between vectors.
 * [NLsolve.jl](https://github.com/EconForge/NLsolve.jl) -- Julia solvers for systems of nonlinear equations and mixed complementarity problems
-
+* [MMA.jl](https://github.com/KristofferC/MMA.jl) -- The "Method of Moving Asymptotes"-algorithm. (old package)
 
 ## Python
 
