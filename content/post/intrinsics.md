@@ -11,25 +11,30 @@ Short guide on SIMD and how to call (SIMD) intrinsics in the Julia programming l
 
 ## Introduction
 
-The good ol' days of processors getting higher clock cycles every year has been over for quite some time now.
-Instead, other features of CPUs are getting improved like the number of cores, size of cache, and the instruction set
+The good old days of processors getting higher clock cycles every year have been over for quite some time now.
+Instead, other features of CPUs are getting improved like the number of cores, the size of the cache, and the instruction set
 they support.
-In order to be a responsible programmers, we should try our best to take advantage of the features the hardware
+In order to be responsible programmers, we should try our best to take advantage of the features the hardware
 provides.
 One way of doing this is multithreading which is exploiting the fact that modern CPUs have multiple cores and
 can run multiple (possibly independent) instruction streams simultaneously.
-Another feature to take advantage of is that a single core on a modern processors can do operations on **multiple** values in one instruction (called SIMD - Single Instruction Multiple Data).
+Another feature to take advantage of is that a single core on modern processors can do operations on **multiple** values in one instruction (called SIMD - Single Instruction Multiple Data).
 
 This article is intended to give a short summary of using SIMD in the Julia programming language.
 It is intended for people already quite familiar with Julia.
-The first part is likely familiar to people that has been using Julia for a while, the latter part, which is about explicitly calling
-SIMD intrindics, might be new. To jump to the intrinsic bit, click here or read the TLDR about it below.
+The first part is likely familiar to people that have been using Julia for a while, the latter part, which is about explicitly calling
+SIMD intrinsics might be new. Feel free to scroll down to the intrinsic bit or read the TLDR about it below.
 
 ## TLDR (SIMD intrinsics)
 
-To call an intrinsic like `_mm_aesdec_si128`, call the intrinsic from C, use Clang with `-emit-llvm` to figure out the
-LLVM intrinsic ([for example](https://godbolt.org/z/vBTDVy)), call it with `ccall("insert_llvm_intrinsic", llvmcall, return_type, input_types, args...)`
-where an LLVM vector type like `<2 x i64>` is translated to the Julia type `NTuple{2, VecElement{Int64}}`:
+To call an intrinsic like `_mm_aesdec_si128`:
+
+* call the intrinsic from C
+* use Clang with `-emit-llvm` to figure out the LLVM intrinsic ([for example](https://godbolt.org/z/vBTDVy))
+* call the intrinsic from Julia with `ccall("insert_llvm_intrinsic", llvmcall, return_type, input_types, args...)`
+  where an LLVM vector type like `<2 x i64>` is translated to the Julia type `NTuple{2, VecElement{Int64}}`
+
+For example:
 
 ```jl
 julia> const __m128i = NTuple{2, VecElement{Int64}};
@@ -73,7 +78,7 @@ julia> code_llvm(axpy!, Tuple{V64, V64, V64})
 ...
 ```
 
-The type `<4 x double>` is a in LLVM IR terminology a [vector](https://llvm.org/docs/LangRef.html#vector-type), and is here the resulting type
+The type `<4 x double>` is in LLVM IR terminology a [vector](https://llvm.org/docs/LangRef.html#vector-type), and is here the resulting type
 of adding two arguments of the same vector type.
 As a note, LLVM has also decided to unroll the loop by a factor of four.
 Moving on to look at the assembly, we see that indeed (at least on the computer of the author), this LLVM IR has turned into processor instructions that
@@ -87,7 +92,7 @@ julia> code_native(axpy!, Tuple{V64, V64, V64})
  vmulpd  96(%esi,%ecx,8), %ymm3, %ymm3
 ```
 
-The instroction [`vmulpd`](https://www.felixcloutier.com/x86/MULPD.html) does "packed" double-precision floating point addition and
+The instruction [`vmulpd`](https://www.felixcloutier.com/x86/MULPD.html) does "packed" double-precision floating point addition and
 the `ymm` registers fit 256 bits which can fit four 64-bit floats.
 
 Note that for reductions using non-associative arithmetic you will have to tell the compiler that it is ok to reorder
@@ -112,7 +117,7 @@ inspecting the code we find that SIMD instructions are used:
 
 LLVM IR:
 
-```
+```jl
 julia> code_llvm(mul_tuples, Tuple{NTuple{4,Float64}, NTuple{4, Float64}})
 ...
   %7 = fmul <4 x double> %4, %6
@@ -121,17 +126,17 @@ julia> code_llvm(mul_tuples, Tuple{NTuple{4,Float64}, NTuple{4, Float64}})
 
 Native code:
 
-```
+```jl
 julia> code_native(mul_tuples, Tuple{NTuple{4,Float64}, NTuple{4, Float64}})
 ...
   vmulpd  (%edx), %ymm0, %ymm0
 ...
 ```
 
-The scalar autovectorizer is quite impressive. It manages for example to very nicely vectorize a 4x4 matrix multiplication
+The scalar auto-vectorizer is quite impressive. It manages for example to very nicely vectorize a 4x4 matrix multiplication
 in the [StaticArrays.jl package](https://github.com/JuliaArrays/StaticArrays.jl) which you can see doing something like
 
-```
+```jl
 julia> using StaticArrays # import Pkg, Pkg.add("StaticArrays") to install
 
 julia> @code_native rand(SMatrix{4,4}) * rand(SMatrix{4,4})
@@ -141,12 +146,12 @@ which almost only uses SIMD-instructions without StaticArrays.jl having to do an
 
 # SIMD using  a vector library
 
-While the auto vectorizer can sometimes work pretty well, it quite easily gets confused or things are not laid out in such a way
+While the auto-vectorizer can sometimes work pretty well, it quite easily gets confused or things are not laid out in such a way
 that it is allowed to vectorize the code.
 For example, trying a matrix multiplication of size
 3x3 instead of 4x4 matrices in StaticArrays.jl and things are not so pretty anymore:
 
-```
+```jl
 @code_native rand(SMatrix{3,3}) * rand(SMatrix{3,3})
     vmovsd  (%rdx), %xmm0           ## xmm0 = mem[0],zero
     vmovsd  8(%rdx), %xmm7          ## xmm7 = mem[0],zero
@@ -181,11 +186,11 @@ julia> for n in (2,3,4)
   6.059 ns (0 allocations: 0 bytes)
 ```
 
-In these cases we can explicitly vectorize the code using the SIMD vector library [SIMD.jl](https://github.com/eschnett/SIMD.jl).
+In these cases, we can explicitly vectorize the code using the SIMD vector library [SIMD.jl](https://github.com/eschnett/SIMD.jl).
 SIMD.jl provides a type `Vec{N, T}` where `N` is the number of elements and `T` is the element type.
 `Vec{N, T}` is a bit like the LLVM `<N x T>` vector type and operations on `Vec` typically translate directly to LLVM operations:
 
-For example, below we define some input data and a function `g` that does some simple arithmetic. We then look at the generated code.
+For example, below we define some input data and a function `g` that do some simple arithmetic. We then look at the generated code.
 
 ```jl
 julia> using SIMD
@@ -239,7 +244,7 @@ julia> @btime matmul3x3($(s)[], $(s)[]);
   4.392 ns (0 allocations: 0 bytes)
 ```
 
-Much better. The code for `matmul3x3` could of course be generalized to work for more sizes, perhaps using a `@generated` function.
+Much better. The code for `matmul3x3` could, of course, be generalized to work for more sizes, perhaps using a `@generated` function.
 
 ## Using intrinsics
 
@@ -247,33 +252,33 @@ All we have done so far has been architecture independent.
 If the CPU does not support SIMD or an old version of it, LLVM will just compile the code
 using the latest features that are available, falling back to scalar instructions if needed.
 However, in some cases, we really do want to use a specific instruction of a CPU that might not exist everywhere
-and now we come to the very reason I wrote this blogpost.
+and now we come to the very reason I wrote this blog post.
 Recently, a new hashing library called ["meowhash"](https://github.com/cmuratori/meow_hash) was released.
-It uses AES decryption which processors now has built in instructions to perform.
+It uses AES decryption which processors now has built-in instructions to perform.
 Looking in the [source code](https://github.com/cmuratori/meow_hash/blob/7a871d7edf4405c2ee361d1401a1eb395926fcca/meow_intrinsics.h#L93)
 we can see the macro:
 
-```
+```cpp
 #define Meow128_AESDEC(Prior, Xor) _mm_aesdec_si128((Prior), (Xor))
 ```
 
 In the [Intel Intrinsics Guide](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_aesdec_si128&expand=221)
 this intrinsic is described as
 
-> Perform one round of an AES decryption flow on data (state) in a using the round key in RoundKey, and store the result in dst.
+> Perform one round of an AES decryption flow on data (state) in a using the round key in `RoundKey`, and store the result in `dst`.
 
 If I wanted to call this intrinsic in Julia, what would I do?
 
 Firstly, Julia allows calling LLVM intrinsics through `ccall`. We can for example call the `pow` intrinsic as:
 
-```
+```jl
 julia> llvm_pow(a, b) = ccall("llvm.pow.f64", llvmcall, Float64, (Float64, Float64), a, b);
 
 julia> llvm_pow(2.0, 3.0)
 8.0
 ```
 
-So in order to call our AES decryption instruction we need to know the corresponding LLVM intrinsic to `_mm_aesdec_si128`. Since Julia itself doesn't provide this intrinsic for us
+So in order to call our AES decryption instruction, we need to know the corresponding LLVM intrinsic to `_mm_aesdec_si128`. Since Julia itself doesn't provide this intrinsic for us
 we need to ask a compiler that does. Fortunately, we can just ask Clang to emit the corresponding LLVM for us.
 Using the [Godbolt compiler webtool](https://godbolt.org/z/vBTDVy) makes this very easy.
 In the link to Godbol we can see the following (slightly cleaned up):
@@ -291,19 +296,24 @@ and not a `vector`
 Instead, we need to send in a tuple with special elements of the type [`VecElement`](https://docs.julialang.org/en/v1/base/simd-types/).
 Julia treats a tuple of `VecElement`s special and will pass it to LLVM as a `vector`.
 
-So now we can just define some convenience type alias
-If we want to call the _mm_aesdec_si128 we ju
+So now we can just define some convenience typealias, create our inputs and call the intrinsic:
 
+```jl
+julia> const __m128i = NTuple{2, VecElement{Int64}};
 
+julia> aesdec(a, roundkey) = ccall("llvm.x86.aesni.aesdec", llvmcall, __m128i, (__m128i, __m128i), a, roundkey);
 
+julia> aesdec(__m128i((213132, 13131)), __m128i((31231, 43213)))
+(VecElement{Int64}(-1627618977772868053), VecElement{Int64}(999044532936195731))
+```
 
+So now, we are in a position to port Meow Hash to Julia!
 
+It should be stated that intrinsics should only be used a last resort. It will lead to your code being less portable
+and harder to maintain.
 
+## Conclusion
 
-https://godbolt.org/z/jVrNHM
-
-
-Looking at the [Intel intrinsic ]
-
-
-
+There are many ways of doing SIMD in Julia. From letting the compiler to the the job to using a SIMD library, and finally
+getting our hands dirty and use the intrinsics. Which way is best will depend on your application but hopefully, this helped a bit
+with showing what options are available.
