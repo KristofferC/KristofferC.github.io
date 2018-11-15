@@ -18,6 +18,7 @@ Here are some of the open source projects I have created or been involved with:
 
 ## Julia
 
+* [Pkg.jl](https://github.com/JuliaLang/Pkg.jl) -- Julia's package manager.
 * [NearestNeighbors.jl](https://github.com/KristofferC/NearestNeighbors.jl) -- High performance nearest neighbor data structures and algorithms.
 * [Tensors.jl](https://github.com/KristofferC/Tensors.jl) -- Efficient computations with symmetric and non-symmetric tensors with support for automatic differentiation.
 * [OhMyREPL.jl](https://github.com/KristofferC/OhMyREPL.jl) -- Syntax highlighting and other enhancements for the Julia REPL.
@@ -39,3 +40,7 @@ Here are some of the open source projects I have created or been involved with:
 ## Talks
 
 {{< youtube 30TUEhbGmuc >}}
+
+{{< youtube dDjH26p2BhE >}}
+
+{{< youtube HgFmiT5p0zU >}}

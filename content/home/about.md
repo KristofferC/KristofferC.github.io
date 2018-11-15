@@ -31,7 +31,4 @@ weight = 0
 
 # Biography
 
-Kristoffer Carlsson is a Ph.D student at the Material and Computational Mechanics department at Chalmers University of Technology.
-His research interests include material modeling of crystal plasticity and homogenization of the response to the macro scale.
-
-He also enjoys working on open software projects, in particular, the [Julia language project](http://julialang.org).
+Kristoffer Carlsson is a software engineer working for [Julia Computing](https://juliacomputing.com).

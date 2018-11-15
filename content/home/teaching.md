@@ -16,11 +16,15 @@ weight = 50
 
 I have been a teaching assistant for the following courses at Chalmers University of Technology:
 
+## 2017 / 2018
+- DAT171 --- Object-oriented programming in Python
+- TME250 --- Finite element method solids
+- MHA032 --- Material Mechanics
+
 ## 2016 / 2017
 - DAT171 --- Object-oriented programming in Python
 - TME250 --- Finite element method solids
 - TME031 --- Mechanics Dynamics
-
 
 ## 2015 / 2016
 - DAT171 --- Object-oriented programming in Python
