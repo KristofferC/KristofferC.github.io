@@ -21,12 +21,10 @@ defaultContentLanguageInSubdir = false
 
 [params]
   name = "Kristoffer Carlsson"
-  role = "Ph.D student in Computational Mechanics"
-  organization = "Chalmers University of Technology"
+  role = "Software engineer"
+  organization = "Julia Computing"
   avatar = "avatar.jpg"
-  email = "kristoffer.carlsson@chalmers.se"
-  address = "M-building Floor 2, Hörsalsvägen 7A, Chalmers University of Technology, Gothenburg, SE-41295, Sweden"
-  phone = "+46317721492"
+  email = "kcarlsson89@gmai.com"
 
 
   # Enable Keybase in Contact section by entering your keybase.io username.
