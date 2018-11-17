@@ -1,21 +1,24 @@
-env:
-  global:
-    - secure: "pb5Uq5jkzJFSmefpmJqdXWaEIwNq8mRey4JAs06jctlpJSZ6lMeUbPKhf/BFXj6ZCOsZbyoh4oL7U/b66z3zLkTEXpk6If0gkm0sUZKVuzm9T0PqE5TkRZ74DDOiXTca34ubjYZa2WTVlrz84qbxef6rHlxfeh7aM0xHajFkceJKYwe56fPnu+vksJmJ3rHl88dkIb1lMynUqGhme71EIjTGGoRDhiRHdudexbAh9vW4XVdgexOdZLhACL2JD7JVJtqJR2lLPpafqnims6CFLK69ukUy1/u0Tub8hyTZv92hAH40zw/yUkoSyiGS4Owzl3lr2pYmDQrPpwdt6nm9At3eeV6JREuomZ295XuOpRF8tHkgUFpHjFqI6BcBaG68vkaVXYXUsiSZq7ULAAj3GlI2wVuUmxmW7fB72kvum9C3gAl/qJNd5y4xpk5Fq90+C/S8vBvPHu5k1+cXyfEC+V+cKbG/QaRB2ebJEizmlNxDXnACkfAuKoDOgWKp9hJ71YFM1s7bnwEzeUWk198MttCHPp9BLMAgmTuDZ0M/BKs7+eSr9SWBsW6yxly5XC/0Pig+bCxdOjB5OTEcKeZ/xsEXkohwwZ3Yi3AIF6oNflPRunquUp7j8xZlAE0OU1qNu0MUHWa5Ao82+FzLJMIuAbdzrFFD/tF2RQ/viWTQm4M="
-    - GIT_DEPLOY_DIR=public # this is the default output dir of Hugo
-    - GIT_DEPLOY_BRANCH=master # this is the target branch, replace by gh-pages for Project Pages
-    - GIT_DEPLOY_USERNAME="Travis CI" # dummy name
-    - GIT_DEPLOY_EMAIL=kristoffer.carlsson@chalmers.se # replace by your email
-branches:
-  only:
-    - sources # replace by master for Project Pages
+# Install the apt prerequisites
+addons:
+  apt:
+    packages:
+      - python-pygments
 
-notifications:
-  email: false
-
+# Clean and don't fail
 install:
-  - rm -rf public || exit 0 # cleanup previous run
+  - rm -rf public || exit 0
+
+# Build the website
 script:
-  - binaries/hugo # generate!
-after_success:
-  - cp .travis.yml public # all branches need this file
-  - bash deploy.sh # run the deploy script    
+  - cd src
+  - ../binaries/hugo
+
+# Deploy to GitHub pages
+deploy:
+  provider: pages
+  skip_cleanup: true
+  github_token: $GH_TOKEN
+  target_branch: master
+  local_dir: public
+  on:
+    branch: sources
