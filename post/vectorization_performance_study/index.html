@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="theme" content="hugo-academic">
+  <meta name="generator" content="Hugo 0.19-DEV" />
+  <meta name="author" content="Kristoffer Carlsson">
+  <meta name="description" content="Software engineer">
+
+  <link rel="stylesheet" href="/css/highlight.min.css">
+  <link rel="stylesheet" href="/css/bootstrap.min.css">
+  <link rel="stylesheet" href="/css/font-awesome.min.css">
+  <link rel="stylesheet" href="/css/academicons.min.css">
+  <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Lato:400,700|Merriweather|Roboto+Mono">
+  <link rel="stylesheet" href="/css/hugo-academic.css">
+  
+  <link rel="stylesheet" href="/css/custom.css">
+  
+
+  <link rel="alternate" href="http://KristofferC.github.io/index.xml" type="application/rss+xml" title="Kristoffer Carlsson">
+  <link rel="feed" href="http://KristofferC.github.io/index.xml" type="application/rss+xml" title="Kristoffer Carlsson">
+
+  <link rel="icon" type="image/png" href="/img/icon.png">
+  <link rel="apple-touch-icon" type="image/png" href="/img/apple-touch-icon.png">
+
+  <link rel="canonical" href="http://kristofferc.github.io/post/vectorization_performance_study/">
+
+  
+
+  <title>Case study: Improving performance of a code written in Matlab style | Kristoffer Carlsson</title>
+
+</head>
+<body id="top" data-spy="scroll" data-target="#navbar-main" data-offset="71">
+
+<nav class="navbar navbar-default navbar-fixed-top" id="navbar-main">
+  <div class="container">
+
+    
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse"
+              data-target=".navbar-collapse" aria-expanded="false">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="/">Kristoffer Carlsson</a>
+    </div>
+
+    
+    <div class="collapse navbar-collapse">
+
+      
+      <ul class="nav navbar-nav navbar-right">
+        
+        <li class="nav-item">
+          <a href="/#about">
+            Home
+          </a>
+        </li>
+        
+        <li class="nav-item">
+          <a href="/#posts">
+            Posts
+          </a>
+        </li>
+        
+        <li class="nav-item">
+          <a href="/#opensource">
+            Open source
+          </a>
+        </li>
+        
+        <li class="nav-item">
+          <a href="/#contact">
+            Contact
+          </a>
+        </li>
+        
+      </ul>
+
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+
+  <article class="article" itemscope itemtype="http://schema.org/Article">
+
+    
+
+    <h1 itemprop="name">Case study: Improving performance of a code written in Matlab style</h1>
+
+    
+
+<div class="article-metadata">
+
+  <span class="article-date">
+    <time datetime="2016-12-26 15:00:00 &#43;0000 UTC" itemprop="datePublished">
+      Mon, Dec 26, 2016
+    </time>
+  </span>
+
+  
+  
+  
+  <span class="article-tags">
+    <i class="fa fa-tags"></i>
+    
+    <a class="article-tag-link" href="http://kristofferc.github.iotags/performance">performance</a
+    >, 
+    
+    <a class="article-tag-link" href="http://kristofferc.github.iotags/vectorization">vectorization</a
+    >, 
+    
+    <a class="article-tag-link" href="http://kristofferc.github.iotags/loops">loops</a
+    >, 
+    
+    <a class="article-tag-link" href="http://kristofferc.github.iotags/julia">julia</a
+    >
+    
+  </span>
+  
+  
+
+  
+  
+<div class="share-box" aria-hidden="true">
+  <ul class="share">
+    <li>
+      <a class="facebook"
+         href="https://www.facebook.com/sharer.php?u=http%3a%2f%2fkristofferc.github.io%2fpost%2fvectorization_performance_study%2f"
+         target="_blank">
+        <i class="fa fa-facebook"></i>
+      </a>
+    </li>
+    <li>
+      <a class="twitter"
+         href="https://twitter.com/intent/tweet?text=Case%20study%3a%20Improving%20performance%20of%20a%20code%20written%20in%20Matlab%20style&amp;url=http%3a%2f%2fkristofferc.github.io%2fpost%2fvectorization_performance_study%2f"
+         target="_blank">
+        <i class="fa fa-twitter"></i>
+      </a>
+    </li>
+    <li>
+      <a class="linkedin"
+         href="https://www.linkedin.com/shareArticle?mini=true&amp;url=http%3a%2f%2fkristofferc.github.io%2fpost%2fvectorization_performance_study%2f&amp;title=Case%20study%3a%20Improving%20performance%20of%20a%20code%20written%20in%20Matlab%20style"
+         target="_blank">
+        <i class="fa fa-linkedin"></i>
+      </a>
+    </li>
+    <li>
+      <a class="weibo"
+         href="http://service.weibo.com/share/share.php?url=http%3a%2f%2fkristofferc.github.io%2fpost%2fvectorization_performance_study%2f&amp;title=Case%20study%3a%20Improving%20performance%20of%20a%20code%20written%20in%20Matlab%20style"
+         target="_blank">
+        <i class="fa fa-weibo"></i>
+      </a>
+    </li>
+    <li>
+      <a class="email"
+         href="mailto:?subject=Case%20study%3a%20Improving%20performance%20of%20a%20code%20written%20in%20Matlab%20style&amp;body=http%3a%2f%2fkristofferc.github.io%2fpost%2fvectorization_performance_study%2f">
+        <i class="fa fa-envelope"></i>
+      </a>
+    </li>
+  </ul>
+</div>
+
+
+  
+
+</div>
+
+
+    <div class="article-style" itemprop="articleBody">
+      
+
+<h2 id="introduction">Introduction</h2>
+
+<p>A few weeks ago, someone asked on the <a href="https://discourse.julialang.org/t/elementwise-array-operations-and-performance/754" target="_blank">Julia Discourse forum</a> for assistance how to make their code a bit faster.</p>
+
+<p>The original code posted was (with a few minor modifications)</p>
+
+<pre><code class="language-jl">function myImg(pts::Integer)
+    # rotation of ellipse
+    aEll = 35.0/180.0*pi
+    axes = [1/6,1/25]
+    values = collect(linspace(-0.5,0.5,pts))
+
+    # meshes
+    gridX = [i for i in values, j in values]
+    gridY = [j for i in values, j in values]
+
+    # generate ellipse
+    # rotate by alpha
+    Xr = cos(aEll).*gridX - sin(aEll).*gridY
+    Yr = cos(aEll).*gridY + sin(aEll).*gridX
+    img = ((1/axes[1]*Xr.^2 + 1/axes[2]*Yr.^2).&lt;=1).*( 10*pi*Yr);
+    return mod(img-pi,2*pi)+pi
+end
+</code></pre>
+
+<p>I did not spend too much time trying to figure out the purpose of the code but it looks like it is creating some sort of rotated ellipse.
+Plotting a heatmap of the resulting matrix confirms this:</p>
+
+<pre><code class="language-jl">julia&gt; using Plots
+
+julia&gt; img = myImg(1024)
+
+julia&gt; heatmap(img)
+</code></pre>
+
+
+<figure >
+    
+        <img src="/img/ellipses.png" />
+    
+    
+</figure>
+
+
+<h2 id="analysis">Analysis</h2>
+
+<p>To get an estimate of the time and memory allocation it takes to run the function we can use the <code>@time</code> macro.<sup class="footnote-ref" id="fnref:1"><a rel="footnote" href="#fn:1">1</a></sup>
+As to not measure compilation overhead, the function is timed twice (here using Julia v0.5).</p>
+
+<pre><code class="language-julia">julia&gt; @time myImg(1024);
+  0.117500 seconds (845 allocations: 144.179 MB, 50.45% gc time)
+</code></pre>
+
+<p>The first thing to do when trying to improve performance of Julia code is to check if there are any type instabilities (see <a href="http://www.johnmyleswhite.com/notebook/2013/12/06/writing-type-stable-code-in-julia/" target="_blank">here</a> and <a href="http://docs.julialang.org/en/release-0.5/manual/performance-tips/#measure-performance-with-time-and-pay-attention-to-memory-allocation" target="_blank">here</a> for references) in performance sensitive parts of the code.
+Julia provides a macro called  <code>@code_warntype</code> which gives colored output where type instabilities are shown in red.
+Running <code>@code_warntype myImg(1024)</code> shows, however, that this function is perfectly fine from a type stability point of view.</p>
+
+<p>The <code>@time</code> output, shows a significant amount of time (~50%) is spent in the garbage collector (GC).
+This indicates that large amounts of memory is being allocated and released and thus needs to be garbage collected.
+The initial goal should thus first be to reduce the amount of memory allocations.<sup class="footnote-ref" id="fnref:2"><a rel="footnote" href="#fn:2">2</a></sup></p>
+
+<p>The most significant memory allocations start with the &ldquo;mesh grid&rdquo; type of variables <code>gridX</code> and <code>gridY</code> which are created as</p>
+
+<pre><code class="language-jl">gridX = [i for i in values, j in values]
+gridY = [j for i in values, j in values]
+</code></pre>
+
+<p>Often, creating a mesh grid like this is quite wasteful in terms of memory because we are here storing <code>pts</code> amount of data in <code>2*pts^2</code> amount of memory.
+Later, these matrices are used to do operations in an &ldquo;vectorized&rdquo; fashion:</p>
+
+<pre><code class="language-jl">Xr = cos(aEll).*gridX - sin(aEll).*gridY
+Yr = cos(aEll).*gridY + sin(aEll).*gridX
+img = ((1/axes[1]*Xr.^2 + 1/axes[2]*Yr.^2).&lt;=1).*( 10*pi*Yr);
+return mod(img-pi,2*pi)+pi
+</code></pre>
+
+<p>This is where the problem with memory allocations sits. For example the command <code>cos(aEll).*gridX</code> has to allocate a <em>brand new</em> matrix to store the result in.
+And then again allocate a new matrix for the <code>sin</code> part. And then a new matrix for the subtraction between the two matrices etc.
+It is evident that there are a lot of new matrices being created here.<sup class="footnote-ref" id="fnref:3"><a rel="footnote" href="#fn:3">3</a></sup>
+Code like this is quite common from users coming from a MATLAB programming background, since for loops have traditionally been quite slow there.
+In addition to the overhead of allocating memory, this also has the effect that the computer is working with &ldquo;cold&rdquo; memory (memory not in cache) a lot.
+For good performance, it is important to try to do as much operations as possible on the data while it is in cache before loading new data.</p>
+
+<p>The remedy to the memory and cache problem is to attack the problem along a different dimension.
+Instead of building up the full result array by doing small operations array by array, it is built up element by element.</p>
+
+<p>My proposed rewrite of the function is:</p>
+
+<pre><code>function myImg2(pts::Integer)
+  # rotation of ellipse
+  aEll = 35.0/180.0*pi
+  axes_inv = [6.0, 25.0]
+  values = collect(linspace(-0.5,0.5,pts))
+
+  img = zeros(Float64, pts, pts)
+  cosa = cos(aEll)
+  sina = sin(aEll)
+  @inbounds @fastmath for j in eachindex(values), i in eachindex(values)
+      Xr = cosa*values[i] - sina*values[j]
+      Yr = cosa*values[j] + sina*values[i]
+      v = (axes_inv[1]*Xr^2 + axes_inv[2]*Yr^2)
+      k = v &lt;= 1 ? 10*pi*Yr : 0.0
+      img[i,j] = mod(k-pi,2*pi)+pi
+    end
+  return img
+end
+</code></pre>
+
+<p>The &ldquo;meshgrid&rdquo; variables <code>gridX</code> and <code>gridY</code> are gone and instead, a nested loop completely computes the result for each element and stores it in <code>img[i,j]</code>.
+Timing the new function results in</p>
+
+<pre><code>julia&gt; @time myImg2(1024);
+  0.011171 seconds (9 allocations: 8.008 MB)
+</code></pre>
+
+<p>which is a speed up of about 10x and a reduction of memory use by almost 20x without (I would say) making the code much more complicated to read and understand.</p>
+
+<h2 id="conclusions">Conclusions</h2>
+
+<p>Rewriting code that is written in a &ldquo;vectorized&rdquo; form can sometimes be beneficial if you see that the code is allocating a lot of memory and the time spent garbage collecting is significant.</p>
+
+<h2 id="edits">Edits:</h2>
+
+<p>Removed a section that suggested taking away <code>collect</code> from the <code>values</code> variable. Since we are indexing directly into <code>values</code> it turns out that using an iterator is slightly slower (10%) than using a <code>Vector</code>. Thanks to <a href="https://github.com/SimonDanisch" target="_blank">Simon Danisch</a></p>
+<div class="footnotes">
+
+<hr />
+
+<ol>
+<li id="fn:1">Instead of using the <code>@time</code> macro it is often better to use a dedicated benchmark framework like <a href="https://github.com/JuliaCI/BenchmarkTools.jl" target="_blank">BenchmarkTools.jl</a>. However, the run time of the function is here quite large so the <code>@time</code> macro is ok to use.
+ <a class="footnote-return" href="#fnref:1"><sup>^</sup></a></li>
+<li id="fn:2">Typically, it is always good to get in the habit of profiling code before trying to optimize it. &ldquo;Measuring gives you a leg up on experts who don&rsquo;t need to measure&rdquo; &ndash; Walter Bright. Julia has a macro <code>@profile</code> that together with the package <a href="https://github.com/timholy/ProfileView.jl" target="_blank">ProfileView.jl</a> gives a flame graph overview of where time is spent. However, when there are glaring performance bottle necks, I typically fix those first before profiling.
+ <a class="footnote-return" href="#fnref:2"><sup>^</sup></a></li>
+<li id="fn:3">Julia 0.6 comes with a cool feature where chained calls to dotted operators (like <code>.+</code>) are fused. As an example, in 0.6, the command <code>cos(aEll).*gridX .- sin(aEll).*gridY</code> would only allocate one array instead of three, as in 0.5.
+ <a class="footnote-return" href="#fnref:3"><sup>^</sup></a></li>
+</ol>
+</div>
+
+    </div>
+
+  </article>
+
+  <nav>
+  <ul class="pager">
+    
+
+    
+    <li class="next"><a href="http://kristofferc.github.io/post/tokenize/">What identifier is the most common in Julia? The answer might surprise you! <span
+      aria-hidden="true">&rarr;</span></a></li>
+    
+  </ul>
+</nav>
+
+  
+<section id="comments">
+  <div id="disqus_thread">
+    <div id="disqus_thread"></div>
+<script type="text/javascript">
+    var disqus_shortname = 'kristoffer-carlsson';
+    var disqus_identifier = 'http:\/\/kristofferc.github.io\/post\/vectorization_performance_study\/';
+    var disqus_title = 'Case study: Improving performance of a code written in Matlab style';
+    var disqus_url = 'http:\/\/kristofferc.github.io\/post\/vectorization_performance_study\/';
+
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+  </div>
+</section>
+
+
+
+</div>
+<footer class="site-footer">
+  <div class="container">
+    <p class="powered-by">
+
+      &copy; 2016 Kristoffer Carlsson &middot; 
+
+      Powered by the <a href="https://github.com/gcushen/hugo-academic" target="_blank">Academic
+      theme</a> for <a href="http://gohugo.io" target="_blank">Hugo</a>.
+
+      <span class="pull-right" aria-hidden="true">
+        <a href="#" id="back_to_top">
+          <span class="button_icon">
+            <i class="fa fa-chevron-up fa-2x"></i>
+          </span>
+        </a>
+      </span>
+
+    </p>
+  </div>
+</footer>
+
+    <script src="//cdnjs.cloudflare.com/ajax/libs/gsap/1.18.4/TweenMax.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/gsap/latest/plugins/ScrollToPlugin.min.js"></script>
+    <script src="/js/jquery-1.12.3.min.js"></script>
+    <script src="/js/bootstrap.min.js"></script>
+    <script src="/js/isotope.pkgd.min.js"></script>
+    <script src="/js/hugo-academic.js"></script>
+    
+
+    
+    <script>
+        (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+        (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+        m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+        })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+        ga('create', 'UA-89496017-1', 'auto');
+        ga('send', 'pageview');
+
+         
+        var links = document.querySelectorAll('a');
+        Array.prototype.map.call(links, function(item) {
+            if (item.host != document.location.host) {
+                item.addEventListener('click', function() {
+                    var action = item.getAttribute('data-action') || 'follow';
+                    ga('send', 'event', 'outbound', action, item.href);
+                });
+            }
+        });
+    </script>
+    
+
+    
+    <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.3.0/highlight.min.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+
+    
+    
+    <script type="text/x-mathjax-config">
+        MathJax.Hub.Config({ tex2jax: { inlineMath: [['$','$'], ['\\(','\\)']] } });
+    </script>
+    <script async src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_CHTML"></script>
+    
+
+  </body>
+</html>
+

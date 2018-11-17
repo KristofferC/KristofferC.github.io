@@ -1,0 +1,327 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Intrinsics on Kristoffer Carlsson</title>
+    <link>http://kristofferc.github.io/tags/intrinsics/index.xml</link>
+    <description>Recent content in Intrinsics on Kristoffer Carlsson</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <copyright>&amp;copy; 2016 Kristoffer Carlsson</copyright>
+    <atom:link href="/tags/intrinsics/index.xml" rel="self" type="application/rss+xml" />
+    
+    <item>
+      <title>SIMD and SIMD-intrinsics in Julia</title>
+      <link>http://kristofferc.github.io/post/intrinsics/</link>
+      <pubDate>Tue, 13 Nov 2018 15:00:00 +0000</pubDate>
+      
+      <guid>http://kristofferc.github.io/post/intrinsics/</guid>
+      <description>
+
+&lt;h2 id=&#34;introduction&#34;&gt;Introduction&lt;/h2&gt;
+
+&lt;p&gt;The good old days of processors getting a higher clock-speed every year have been over for quite some time now.
+Instead, other features of CPUs are getting improved like the number of cores, the size of the cache, and the instruction set
+they support.
+In order to be responsible programmers, we should try our best to take advantage of the features the hardware
+provides.
+One way of doing this is multithreading which is exploiting the fact that modern CPUs have multiple cores and
+can run multiple (possibly independent) instruction streams simultaneously.
+Another feature to take advantage of is that a single core on modern processors can do operations on &lt;strong&gt;multiple&lt;/strong&gt; values in one instruction (called SIMD - Single Instruction Multiple Data).&lt;/p&gt;
+
+&lt;p&gt;This article is intended to give a short summary of using SIMD in the Julia programming language.
+It is intended for people already quite familiar with Julia.
+The first part is likely familiar to people that have been using Julia for a while, the latter part, which is about explicitly calling
+SIMD intrinsics might be new. Feel free to scroll down to the intrinsic bit or read the TLDR about it below.&lt;/p&gt;
+
+&lt;h2 id=&#34;tldr-simd-intrinsics&#34;&gt;TLDR (SIMD intrinsics)&lt;/h2&gt;
+
+&lt;p&gt;To call an intrinsic like &lt;code&gt;_mm_aesdec_si128&lt;/code&gt;:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;call the intrinsic from C&lt;/li&gt;
+&lt;li&gt;use Clang with &lt;code&gt;-emit-llvm&lt;/code&gt; to figure out the LLVM intrinsic (&lt;a href=&#34;https://godbolt.org/z/vBTDVy&#34; target=&#34;_blank&#34;&gt;for example&lt;/a&gt;)&lt;/li&gt;
+&lt;li&gt;call the intrinsic from Julia with &lt;code&gt;ccall(&amp;quot;insert_llvm_intrinsic&amp;quot;, llvmcall, return_type, input_types, args...)&lt;/code&gt;
+where an LLVM vector type like &lt;code&gt;&amp;lt;2 x i64&amp;gt;&lt;/code&gt; is translated to the Julia type &lt;code&gt;NTuple{2, VecElement{Int64}}&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;For example:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;julia&amp;gt; const __m128i = NTuple{2, VecElement{Int64}};
+
+julia&amp;gt; aesdec(a, roundkey) = ccall(&amp;quot;llvm.x86.aesni.aesdec&amp;quot;, llvmcall, __m128i, (__m128i, __m128i), a, roundkey);
+
+julia&amp;gt; aesdec(__m128i((213132, 13131)), __m128i((31231, 43213)))
+(VecElement{Int64}(-1627618977772868053), VecElement{Int64}(999044532936195731))
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h2 id=&#34;automatic-simd&#34;&gt;Automatic SIMD&lt;/h2&gt;
+
+&lt;p&gt;The backend compiler for Julia is LLVM which can in some cases vectorize loops using the &lt;a href=&#34;https://llvm.org/docs/Vectorizers.html#the-loop-vectorizer&#34; target=&#34;_blank&#34;&gt;Loop Vectorizer&lt;/a&gt;
+and it can even promote scalar code to SIMD operations using the &lt;a href=&#34;https://llvm.org/docs/Vectorizers.html#the-loop-vectorizer&#34; target=&#34;_blank&#34;&gt;SLP Vectorizer&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h3 id=&#34;automatic-loop-vectorization&#34;&gt;Automatic loop vectorization&lt;/h3&gt;
+
+&lt;p&gt;Defining a simple loop that does an &amp;ldquo;axpy&amp;rdquo; like operation &lt;code&gt;c .= a .* b&lt;/code&gt;&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;function axpy!(c::Array, a::Array, b::Array)
+    @assert length(a) == length(b) == length(c)
+    @inbounds for i in 1:length(a)
+        c[i] = a[i] * b[i]
+    end
+end
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;and using the code introspection tool to inspect the generated LLVM IR, we see:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;julia&amp;gt; V64 = Vector{Float64}
+Array{Float64,1}
+
+julia&amp;gt; code_llvm(axpy!, Tuple{V64, V64, V64})
+...
+  %56 = fmul &amp;lt;4 x double&amp;gt; %wide.load, %wide.load24
+  %57 = fmul &amp;lt;4 x double&amp;gt; %wide.load21, %wide.load25
+  %58 = fmul &amp;lt;4 x double&amp;gt; %wide.load22, %wide.load26
+  %59 = fmul &amp;lt;4 x double&amp;gt; %wide.load23, %wide.load27
+...
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;The type &lt;code&gt;&amp;lt;4 x double&amp;gt;&lt;/code&gt; is in LLVM IR terminology a &lt;a href=&#34;https://llvm.org/docs/LangRef.html#vector-type&#34; target=&#34;_blank&#34;&gt;vector&lt;/a&gt;, and is here the resulting type
+of adding two arguments of the same vector type.
+As a note, LLVM has also decided to unroll the loop by a factor of four.
+Moving on to look at the assembly, we see that indeed (at least on the computer of the author), this LLVM IR has turned into processor instructions that
+does four multiplications in one instruction.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;julia&amp;gt; code_native(axpy!, Tuple{V64, V64, V64})
+ vmulpd  (%esi,%ecx,8), %ymm0, %ymm0
+ vmulpd  32(%esi,%ecx,8), %ymm1, %ymm1
+ vmulpd  64(%esi,%ecx,8), %ymm2, %ymm2
+ vmulpd  96(%esi,%ecx,8), %ymm3, %ymm3
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;The instruction &lt;a href=&#34;https://www.felixcloutier.com/x86/MULPD.html&#34; target=&#34;_blank&#34;&gt;&lt;code&gt;vmulpd&lt;/code&gt;&lt;/a&gt; does &amp;ldquo;packed&amp;rdquo; double-precision floating point addition and
+the &lt;code&gt;ymm&lt;/code&gt; registers fit 256 bits which can thus fit four 64-bit floats.&lt;/p&gt;
+
+&lt;p&gt;Any type of control flow inside the loop will likely mean the loop will not vectorize. That is why &lt;code&gt;@inbounds&lt;/code&gt; is important here,
+otherwise we have control flow to the part that throws the bounds error.&lt;/p&gt;
+
+&lt;p&gt;Note that for reductions using non-associative arithmetic (like floating point airthmetic) you will have to tell the compiler that it is ok to reorder
+the accumulations into the reduction variable using the &lt;code&gt;@simd&lt;/code&gt; macro.&lt;/p&gt;
+
+&lt;h3 id=&#34;automatic-scalar-vectorization&#34;&gt;Automatic scalar vectorization&lt;/h3&gt;
+
+&lt;p&gt;LLVM can also auto-vectorize scalar operations that follow a certain pattern. Here
+is a function that does not contain any loop:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;function mul_tuples(a::NTuple{4,Float64}, b::NTuple{4,Float64})
+    return (a[1]*b[1], a[2]*b[2], a[3]*b[3], a[4]*b[4])
+end
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;The function &lt;code&gt;mul_tuples&lt;/code&gt; just multiplies numbers from two tuples of length four and forms a new tuple.
+The pattern here should be obvious, it is clear that the four additions
+could be done at the same time.
+LLVM can identify such patterns and generate code that uses SIMD. Again,
+inspecting the code we find that SIMD instructions are used:&lt;/p&gt;
+
+&lt;p&gt;LLVM IR:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;julia&amp;gt; code_llvm(mul_tuples, Tuple{NTuple{4,Float64}, NTuple{4, Float64}})
+...
+  %7 = fmul &amp;lt;4 x double&amp;gt; %4, %6
+...
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Native code:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;julia&amp;gt; code_native(mul_tuples, Tuple{NTuple{4,Float64}, NTuple{4, Float64}})
+...
+  vmulpd  (%edx), %ymm0, %ymm0
+...
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;The scalar auto-vectorizer is quite impressive. It manages for example to very nicely vectorize a 4x4 matrix multiplication
+in the &lt;a href=&#34;https://github.com/JuliaArrays/StaticArrays.jl&#34; target=&#34;_blank&#34;&gt;StaticArrays.jl package&lt;/a&gt; which you can see doing something like&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;julia&amp;gt; using StaticArrays # import Pkg, Pkg.add(&amp;quot;StaticArrays&amp;quot;) to install
+
+julia&amp;gt; @code_native rand(SMatrix{4,4}) * rand(SMatrix{4,4})
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;which almost only uses SIMD-instructions without StaticArrays.jl having to do any work for it.&lt;/p&gt;
+
+&lt;h1 id=&#34;simd-using-a-vector-library&#34;&gt;SIMD using  a vector library&lt;/h1&gt;
+
+&lt;p&gt;While the auto-vectorizer can sometimes work pretty well, it quite easily gets confused. Alternatively, the data
+is not laid out in such a way that it is allowed or beneficial to vectorize the code.
+For example, trying a matrix multiplication of size
+3x3 instead of 4x4 matrices in StaticArrays.jl and things are not so pretty anymore:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;@code_native rand(SMatrix{3,3}) * rand(SMatrix{3,3})
+    vmovsd  (%rdx), %xmm0           ## xmm0 = mem[0],zero
+    vmovsd  8(%rdx), %xmm7          ## xmm7 = mem[0],zero
+    vmovsd  16(%rdx), %xmm6         ## xmm6 = mem[0],zero
+    vmovsd  16(%rsi), %xmm11        ## xmm11 = mem[0],zero
+    vmovsd  40(%rsi), %xmm12        ## xmm12 = mem[0],zero
+    vmovsd  64(%rsi), %xmm9         ## xmm9 = mem[0],zero
+    vmovsd  24(%rdx), %xmm3         ## xmm3 = mem[0],zero
+    vmovupd (%rsi), %xmm4
+    vmovupd 8(%rsi), %xmm10
+    vmovhpd (%rsi), %xmm11, %xmm5   ## xmm5 = xmm11[0],mem[0]
+    vinsertf128     $1, %xmm5, %ymm4, %ymm5
+    vunpcklpd       %xmm3, %xmm0, %xmm1 ## xmm1 = xmm0[0],xmm3[0]
+    vmovddup        %xmm0, %xmm0    ## xmm0 = xmm0[0,0]
+    vinsertf128     $1, %xmm1, %ymm0, %ymm0
+...
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;In the code above there is a lot of activity in the &lt;code&gt;xmm&lt;/code&gt; registers (which are smaller than &lt;code&gt;ymm&lt;/code&gt;).
+indeed, if we benchmark the 3x3 matrix multiply we find that it is in fact slower than the 4x4 version (note that in the
+benchmark below the matrix is wrapped in a &lt;code&gt;Ref&lt;/code&gt; here to prevent the compiler from constant folding the benchmark loop):&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;julia&amp;gt; using BenchmarkTools # import Pkg; Pkg.add(&amp;quot;BenchmarkTools&amp;quot;) to install
+
+julia&amp;gt; for n in (2,3,4)
+           s = Ref(rand(SMatrix{n,n}))
+           @btime $(s)[] * $(s)[]
+       end
+  2.711 ns (0 allocations: 0 bytes)
+  10.273 ns (0 allocations: 0 bytes)
+  6.059 ns (0 allocations: 0 bytes)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;In these cases, we can explicitly vectorize the code using the SIMD vector library &lt;a href=&#34;https://github.com/eschnett/SIMD.jl&#34; target=&#34;_blank&#34;&gt;SIMD.jl&lt;/a&gt;.
+SIMD.jl provides a type &lt;code&gt;Vec{N, T}&lt;/code&gt; where &lt;code&gt;N&lt;/code&gt; is the number of elements and &lt;code&gt;T&lt;/code&gt; is the element type.
+&lt;code&gt;Vec{N, T}&lt;/code&gt; is similar to the LLVM &lt;code&gt;&amp;lt;N x T&amp;gt;&lt;/code&gt; vector type and operations on &lt;code&gt;Vec&lt;/code&gt; typically translate directly to LLVM operations:&lt;/p&gt;
+
+&lt;p&gt;For example, below we define some input data and a function &lt;code&gt;g&lt;/code&gt; that do some simple arithmetic. We then look at the generated code.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;julia&amp;gt; using SIMD
+
+julia&amp;gt; a = Vec((1,2,3,4))
+&amp;lt;4 x Int64&amp;gt;[1, 2, 3, 4]
+
+julia&amp;gt; b = Vec((1,2,3,4))
+&amp;lt;4 x Int64&amp;gt;[1, 2, 3, 4]
+
+julia&amp;gt; g(a, b, c) = a * b + c;
+
+julia&amp;gt; @code_llvm g(a, b, 3)
+...
+  %res.i = mul &amp;lt;4 x i64&amp;gt; %7, %6
+  %8 = insertelement &amp;lt;4 x i64&amp;gt; undef, i64 %3, i32 0
+  %9 = shufflevector &amp;lt;4 x i64&amp;gt; %8, &amp;lt;4 x i64&amp;gt; undef, &amp;lt;4 x i32&amp;gt; zeroinitializer
+  %res.i1 = add &amp;lt;4 x i64&amp;gt; %res.i, %9
+...
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;The &lt;code&gt;mul &amp;lt;4 x i64&amp;gt;&lt;/code&gt; is the multiplication of the two vectors, and then the scalar &lt;code&gt;3&lt;/code&gt; is &amp;ldquo;broadcasted&amp;rdquo; to a vector
+and added to the result. Feel free to look at &lt;code&gt;@code_native&lt;/code&gt; to see the native SIMD instructions.
+We cand use SIMD.jl to write a faster 3x3 matrix multiplication:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;function matmul3x3(a::SMatrix, b::SMatrix)
+    D1 = a.data; D2 = b.data
+    # Extract data from matrix into SIMD.jl Vec
+    SV11 = Vec((D1[1], D1[2], D1[3]))
+    SV12 = Vec((D1[4], D1[5], D1[6]))
+    SV13 = Vec((D1[7], D1[8], D1[9]))
+
+    # Form the columns of the resulting matrix
+    r1 = muladd(SV13, D2[3], muladd(SV12, D2[2], SV11 * D2[1]))
+    r2 = muladd(SV13, D2[6], muladd(SV12, D2[5], SV11 * D2[4]))
+    r3 = muladd(SV13, D2[9], muladd(SV12, D2[8], SV11 * D2[7]))
+
+    return SMatrix{3,3}((r1[1], r1[2], r1[3],
+                         r2[1], r2[2], r2[3],
+                         r3[1], r3[2], r3[3]))
+end
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Let&amp;rsquo;s compare this new version to the default the 3x3 version:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;julia&amp;gt; s = Ref(rand(SMatrix{n,n}))
+
+julia&amp;gt; @btime $(s)[] * $(s)[];
+  10.281 ns (0 allocations: 0 bytes)
+
+julia&amp;gt; @btime matmul3x3($(s)[], $(s)[]);
+  4.392 ns (0 allocations: 0 bytes)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;A guite significant improvement! The code for &lt;code&gt;matmul3x3&lt;/code&gt; could, of course, be generalized to work for more sizes, perhaps using a &lt;code&gt;@generated&lt;/code&gt; function.&lt;/p&gt;
+
+&lt;h2 id=&#34;using-intrinsics&#34;&gt;Using intrinsics&lt;/h2&gt;
+
+&lt;p&gt;All we have done so far has been architecture independent.
+If the CPU only supports an old version of SIMD or perhaps doesn&amp;rsquo;t support SIMD at all, LLVM will just compile the code
+using the latest features that are available, falling back to scalar instructions if needed.
+However, in some cases, we really do want to use a specific instruction in a certain instruction set supported by the CPU.
+The idea for writing this blog post was from reading about
+a new hashing library called &lt;a href=&#34;https://github.com/cmuratori/meow_hash&#34; target=&#34;_blank&#34;&gt;&amp;ldquo;meowhash&amp;rdquo;&lt;/a&gt; was released.
+It uses AES decryption which processors now has built-in instructions to perform.
+Looking in the &lt;a href=&#34;https://github.com/cmuratori/meow_hash/blob/7a871d7edf4405c2ee361d1401a1eb395926fcca/meow_intrinsics.h#L93&#34; target=&#34;_blank&#34;&gt;source code&lt;/a&gt;
+we can see the macro:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-cpp&#34;&gt;#define Meow128_AESDEC(Prior, Xor) _mm_aesdec_si128((Prior), (Xor))
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;In the &lt;a href=&#34;https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_aesdec_si128&amp;amp;expand=221&#34; target=&#34;_blank&#34;&gt;Intel Intrinsics Guide&lt;/a&gt;
+this intrinsic is described as&lt;/p&gt;
+
+&lt;blockquote&gt;
+&lt;p&gt;Perform one round of an AES decryption flow on data (state) in a using the round key in &lt;code&gt;RoundKey&lt;/code&gt;, and store the result in &lt;code&gt;dst&lt;/code&gt;.&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;If we wanted to port meow-hash to Julia we would need to call this intrinsic in Julia, so how should we do that?&lt;/p&gt;
+
+&lt;p&gt;Firstly, Julia allows calling LLVM intrinsics through &lt;code&gt;ccall&lt;/code&gt;.
+We can for example call the &lt;code&gt;pow&lt;/code&gt; intrinsic for two &lt;code&gt;Float64&lt;/code&gt; as:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;julia&amp;gt; llvm_pow(a, b) = ccall(&amp;quot;llvm.pow.f64&amp;quot;, llvmcall, Float64, (Float64, Float64), a, b);
+
+julia&amp;gt; llvm_pow(2.0, 3.0)
+8.0
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;So, in order to call our AES decryption instruction, we need to know the corresponding LLVM intrinsic to &lt;code&gt;_mm_aesdec_si128&lt;/code&gt;. Since Julia itself doesn&amp;rsquo;t provide us
+with a way to get the intrinsic,
+we need to ask a compiler that does. Fortunately, we can just ask Clang to emit the corresponding LLVM for us.
+Using the &lt;a href=&#34;https://godbolt.org/z/vBTDVy&#34; target=&#34;_blank&#34;&gt;Godbolt compiler webtool&lt;/a&gt; makes this very easy.
+In the link to Godbolt we can see the following (slightly cleaned up):&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;define &amp;lt;2 x i64&amp;gt; @_Z6aesdecDv2_xS_(&amp;lt;2 x i64&amp;gt;, &amp;lt;2 x i64&amp;gt;) local_unnamed_addr #0 !dbg !262 {
+  %3 = call &amp;lt;2 x i64&amp;gt; @llvm.x86.aesni.aesdec(&amp;lt;2 x i64&amp;gt; %0, &amp;lt;2 x i64&amp;gt; %1) #3, !dbg !270
+  ret &amp;lt;2 x i64&amp;gt; %3, !dbg !271
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;So the intrinsic is called &lt;code&gt;x86.aesni.aesdec&lt;/code&gt;. Now, we just need to know how to pass in the argument types which are
+&lt;code&gt;&amp;lt;2 x i64&amp;gt;&lt;/code&gt;. A normal Julia tuple of integers will not do because it gets passed to LLVM as an &lt;a href=&#34;https://llvm.org/docs/LangRef.html#array-type&#34; target=&#34;_blank&#34;&gt;&lt;code&gt;array&lt;/code&gt;&lt;/a&gt;
+and not a &lt;code&gt;vector&lt;/code&gt;
+Instead, we need to send in a tuple with special elements of the type &lt;a href=&#34;https://docs.julialang.org/en/v1/base/simd-types/&#34; target=&#34;_blank&#34;&gt;&lt;code&gt;VecElement&lt;/code&gt;&lt;/a&gt;.
+Julia treats a tuple of &lt;code&gt;VecElement&lt;/code&gt;s special and will pass it to LLVM as a &lt;code&gt;vector&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;All that is now left is to define some convenience typealias, create our inputs and call the intrinsic:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;julia&amp;gt; const __m128i = NTuple{2, VecElement{Int64}};
+
+julia&amp;gt; aesdec(a, roundkey) = ccall(&amp;quot;llvm.x86.aesni.aesdec&amp;quot;, llvmcall, __m128i, (__m128i, __m128i), a, roundkey);
+
+julia&amp;gt; aesdec(__m128i((213132, 13131)), __m128i((31231, 43213)))
+(VecElement{Int64}(-1627618977772868053), VecElement{Int64}(999044532936195731))
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;So now, we are in a position to port Meow Hash to Julia!&lt;/p&gt;
+
+&lt;p&gt;It should be stated that intrinsics should only be used as a last resort. It will lead to your code being less portable
+and harder to maintain.&lt;/p&gt;
+
+&lt;h2 id=&#34;conclusion&#34;&gt;Conclusion&lt;/h2&gt;
+
+&lt;p&gt;There are many ways of doing SIMD in Julia. From letting the compiler to do the the job to using a SIMD library, and finally
+getting our hands dirty and use the intrinsics. Which way is best will depend on your application but hopefully, this helped a bit
+with showing what options are available.&lt;/p&gt;
+</description>
+    </item>
+    
+  </channel>
+</rss>

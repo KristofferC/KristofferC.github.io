@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="theme" content="hugo-academic">
+  <meta name="generator" content="Hugo 0.19-DEV" />
+  <meta name="author" content="Kristoffer Carlsson">
+  <meta name="description" content="Software engineer">
+
+  <link rel="stylesheet" href="/css/highlight.min.css">
+  <link rel="stylesheet" href="/css/bootstrap.min.css">
+  <link rel="stylesheet" href="/css/font-awesome.min.css">
+  <link rel="stylesheet" href="/css/academicons.min.css">
+  <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Lato:400,700|Merriweather|Roboto+Mono">
+  <link rel="stylesheet" href="/css/hugo-academic.css">
+  
+  <link rel="stylesheet" href="/css/custom.css">
+  
+
+  <link rel="alternate" href="http://KristofferC.github.io/index.xml" type="application/rss+xml" title="Kristoffer Carlsson">
+  <link rel="feed" href="http://KristofferC.github.io/index.xml" type="application/rss+xml" title="Kristoffer Carlsson">
+
+  <link rel="icon" type="image/png" href="/img/icon.png">
+  <link rel="apple-touch-icon" type="image/png" href="/img/apple-touch-icon.png">
+
+  <link rel="canonical" href="http://kristofferc.github.io/post/intrinsics/">
+
+  
+
+  <title>SIMD and SIMD-intrinsics in Julia | Kristoffer Carlsson</title>
+
+</head>
+<body id="top" data-spy="scroll" data-target="#navbar-main" data-offset="71">
+
+<nav class="navbar navbar-default navbar-fixed-top" id="navbar-main">
+  <div class="container">
+
+    
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse"
+              data-target=".navbar-collapse" aria-expanded="false">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="/">Kristoffer Carlsson</a>
+    </div>
+
+    
+    <div class="collapse navbar-collapse">
+
+      
+      <ul class="nav navbar-nav navbar-right">
+        
+        <li class="nav-item">
+          <a href="/#about">
+            Home
+          </a>
+        </li>
+        
+        <li class="nav-item">
+          <a href="/#posts">
+            Posts
+          </a>
+        </li>
+        
+        <li class="nav-item">
+          <a href="/#opensource">
+            Open source
+          </a>
+        </li>
+        
+        <li class="nav-item">
+          <a href="/#contact">
+            Contact
+          </a>
+        </li>
+        
+      </ul>
+
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+
+  <article class="article" itemscope itemtype="http://schema.org/Article">
+
+    
+
+    <h1 itemprop="name">SIMD and SIMD-intrinsics in Julia</h1>
+
+    
+
+<div class="article-metadata">
+
+  <span class="article-date">
+    <time datetime="2018-11-13 15:00:00 &#43;0000 UTC" itemprop="datePublished">
+      Tue, Nov 13, 2018
+    </time>
+  </span>
+
+  
+  
+  
+  <span class="article-tags">
+    <i class="fa fa-tags"></i>
+    
+    <a class="article-tag-link" href="http://kristofferc.github.iotags/simd">simd</a
+    >, 
+    
+    <a class="article-tag-link" href="http://kristofferc.github.iotags/intrinsics">intrinsics</a
+    >, 
+    
+    <a class="article-tag-link" href="http://kristofferc.github.iotags/julia">julia</a
+    >
+    
+  </span>
+  
+  
+
+  
+  
+<div class="share-box" aria-hidden="true">
+  <ul class="share">
+    <li>
+      <a class="facebook"
+         href="https://www.facebook.com/sharer.php?u=http%3a%2f%2fkristofferc.github.io%2fpost%2fintrinsics%2f"
+         target="_blank">
+        <i class="fa fa-facebook"></i>
+      </a>
+    </li>
+    <li>
+      <a class="twitter"
+         href="https://twitter.com/intent/tweet?text=SIMD%20and%20SIMD-intrinsics%20in%20Julia&amp;url=http%3a%2f%2fkristofferc.github.io%2fpost%2fintrinsics%2f"
+         target="_blank">
+        <i class="fa fa-twitter"></i>
+      </a>
+    </li>
+    <li>
+      <a class="linkedin"
+         href="https://www.linkedin.com/shareArticle?mini=true&amp;url=http%3a%2f%2fkristofferc.github.io%2fpost%2fintrinsics%2f&amp;title=SIMD%20and%20SIMD-intrinsics%20in%20Julia"
+         target="_blank">
+        <i class="fa fa-linkedin"></i>
+      </a>
+    </li>
+    <li>
+      <a class="weibo"
+         href="http://service.weibo.com/share/share.php?url=http%3a%2f%2fkristofferc.github.io%2fpost%2fintrinsics%2f&amp;title=SIMD%20and%20SIMD-intrinsics%20in%20Julia"
+         target="_blank">
+        <i class="fa fa-weibo"></i>
+      </a>
+    </li>
+    <li>
+      <a class="email"
+         href="mailto:?subject=SIMD%20and%20SIMD-intrinsics%20in%20Julia&amp;body=http%3a%2f%2fkristofferc.github.io%2fpost%2fintrinsics%2f">
+        <i class="fa fa-envelope"></i>
+      </a>
+    </li>
+  </ul>
+</div>
+
+
+  
+
+</div>
+
+
+    <div class="article-style" itemprop="articleBody">
+      
+
+<h2 id="introduction">Introduction</h2>
+
+<p>The good old days of processors getting a higher clock-speed every year have been over for quite some time now.
+Instead, other features of CPUs are getting improved like the number of cores, the size of the cache, and the instruction set
+they support.
+In order to be responsible programmers, we should try our best to take advantage of the features the hardware
+provides.
+One way of doing this is multithreading which is exploiting the fact that modern CPUs have multiple cores and
+can run multiple (possibly independent) instruction streams simultaneously.
+Another feature to take advantage of is that a single core on modern processors can do operations on <strong>multiple</strong> values in one instruction (called SIMD - Single Instruction Multiple Data).</p>
+
+<p>This article is intended to give a short summary of using SIMD in the Julia programming language.
+It is intended for people already quite familiar with Julia.
+The first part is likely familiar to people that have been using Julia for a while, the latter part, which is about explicitly calling
+SIMD intrinsics might be new. Feel free to scroll down to the intrinsic bit or read the TLDR about it below.</p>
+
+<h2 id="tldr-simd-intrinsics">TLDR (SIMD intrinsics)</h2>
+
+<p>To call an intrinsic like <code>_mm_aesdec_si128</code>:</p>
+
+<ul>
+<li>call the intrinsic from C</li>
+<li>use Clang with <code>-emit-llvm</code> to figure out the LLVM intrinsic (<a href="https://godbolt.org/z/vBTDVy" target="_blank">for example</a>)</li>
+<li>call the intrinsic from Julia with <code>ccall(&quot;insert_llvm_intrinsic&quot;, llvmcall, return_type, input_types, args...)</code>
+where an LLVM vector type like <code>&lt;2 x i64&gt;</code> is translated to the Julia type <code>NTuple{2, VecElement{Int64}}</code></li>
+</ul>
+
+<p>For example:</p>
+
+<pre><code class="language-jl">julia&gt; const __m128i = NTuple{2, VecElement{Int64}};
+
+julia&gt; aesdec(a, roundkey) = ccall(&quot;llvm.x86.aesni.aesdec&quot;, llvmcall, __m128i, (__m128i, __m128i), a, roundkey);
+
+julia&gt; aesdec(__m128i((213132, 13131)), __m128i((31231, 43213)))
+(VecElement{Int64}(-1627618977772868053), VecElement{Int64}(999044532936195731))
+</code></pre>
+
+<h2 id="automatic-simd">Automatic SIMD</h2>
+
+<p>The backend compiler for Julia is LLVM which can in some cases vectorize loops using the <a href="https://llvm.org/docs/Vectorizers.html#the-loop-vectorizer" target="_blank">Loop Vectorizer</a>
+and it can even promote scalar code to SIMD operations using the <a href="https://llvm.org/docs/Vectorizers.html#the-loop-vectorizer" target="_blank">SLP Vectorizer</a>.</p>
+
+<h3 id="automatic-loop-vectorization">Automatic loop vectorization</h3>
+
+<p>Defining a simple loop that does an &ldquo;axpy&rdquo; like operation <code>c .= a .* b</code></p>
+
+<pre><code class="language-jl">function axpy!(c::Array, a::Array, b::Array)
+    @assert length(a) == length(b) == length(c)
+    @inbounds for i in 1:length(a)
+        c[i] = a[i] * b[i]
+    end
+end
+</code></pre>
+
+<p>and using the code introspection tool to inspect the generated LLVM IR, we see:</p>
+
+<pre><code class="language-jl">julia&gt; V64 = Vector{Float64}
+Array{Float64,1}
+
+julia&gt; code_llvm(axpy!, Tuple{V64, V64, V64})
+...
+  %56 = fmul &lt;4 x double&gt; %wide.load, %wide.load24
+  %57 = fmul &lt;4 x double&gt; %wide.load21, %wide.load25
+  %58 = fmul &lt;4 x double&gt; %wide.load22, %wide.load26
+  %59 = fmul &lt;4 x double&gt; %wide.load23, %wide.load27
+...
+</code></pre>
+
+<p>The type <code>&lt;4 x double&gt;</code> is in LLVM IR terminology a <a href="https://llvm.org/docs/LangRef.html#vector-type" target="_blank">vector</a>, and is here the resulting type
+of adding two arguments of the same vector type.
+As a note, LLVM has also decided to unroll the loop by a factor of four.
+Moving on to look at the assembly, we see that indeed (at least on the computer of the author), this LLVM IR has turned into processor instructions that
+does four multiplications in one instruction.</p>
+
+<pre><code class="language-jl">julia&gt; code_native(axpy!, Tuple{V64, V64, V64})
+ vmulpd  (%esi,%ecx,8), %ymm0, %ymm0
+ vmulpd  32(%esi,%ecx,8), %ymm1, %ymm1
+ vmulpd  64(%esi,%ecx,8), %ymm2, %ymm2
+ vmulpd  96(%esi,%ecx,8), %ymm3, %ymm3
+</code></pre>
+
+<p>The instruction <a href="https://www.felixcloutier.com/x86/MULPD.html" target="_blank"><code>vmulpd</code></a> does &ldquo;packed&rdquo; double-precision floating point addition and
+the <code>ymm</code> registers fit 256 bits which can thus fit four 64-bit floats.</p>
+
+<p>Any type of control flow inside the loop will likely mean the loop will not vectorize. That is why <code>@inbounds</code> is important here,
+otherwise we have control flow to the part that throws the bounds error.</p>
+
+<p>Note that for reductions using non-associative arithmetic (like floating point airthmetic) you will have to tell the compiler that it is ok to reorder
+the accumulations into the reduction variable using the <code>@simd</code> macro.</p>
+
+<h3 id="automatic-scalar-vectorization">Automatic scalar vectorization</h3>
+
+<p>LLVM can also auto-vectorize scalar operations that follow a certain pattern. Here
+is a function that does not contain any loop:</p>
+
+<pre><code class="language-jl">function mul_tuples(a::NTuple{4,Float64}, b::NTuple{4,Float64})
+    return (a[1]*b[1], a[2]*b[2], a[3]*b[3], a[4]*b[4])
+end
+</code></pre>
+
+<p>The function <code>mul_tuples</code> just multiplies numbers from two tuples of length four and forms a new tuple.
+The pattern here should be obvious, it is clear that the four additions
+could be done at the same time.
+LLVM can identify such patterns and generate code that uses SIMD. Again,
+inspecting the code we find that SIMD instructions are used:</p>
+
+<p>LLVM IR:</p>
+
+<pre><code class="language-jl">julia&gt; code_llvm(mul_tuples, Tuple{NTuple{4,Float64}, NTuple{4, Float64}})
+...
+  %7 = fmul &lt;4 x double&gt; %4, %6
+...
+</code></pre>
+
+<p>Native code:</p>
+
+<pre><code class="language-jl">julia&gt; code_native(mul_tuples, Tuple{NTuple{4,Float64}, NTuple{4, Float64}})
+...
+  vmulpd  (%edx), %ymm0, %ymm0
+...
+</code></pre>
+
+<p>The scalar auto-vectorizer is quite impressive. It manages for example to very nicely vectorize a 4x4 matrix multiplication
+in the <a href="https://github.com/JuliaArrays/StaticArrays.jl" target="_blank">StaticArrays.jl package</a> which you can see doing something like</p>
+
+<pre><code class="language-jl">julia&gt; using StaticArrays # import Pkg, Pkg.add(&quot;StaticArrays&quot;) to install
+
+julia&gt; @code_native rand(SMatrix{4,4}) * rand(SMatrix{4,4})
+</code></pre>
+
+<p>which almost only uses SIMD-instructions without StaticArrays.jl having to do any work for it.</p>
+
+<h1 id="simd-using-a-vector-library">SIMD using  a vector library</h1>
+
+<p>While the auto-vectorizer can sometimes work pretty well, it quite easily gets confused. Alternatively, the data
+is not laid out in such a way that it is allowed or beneficial to vectorize the code.
+For example, trying a matrix multiplication of size
+3x3 instead of 4x4 matrices in StaticArrays.jl and things are not so pretty anymore:</p>
+
+<pre><code class="language-jl">@code_native rand(SMatrix{3,3}) * rand(SMatrix{3,3})
+    vmovsd  (%rdx), %xmm0           ## xmm0 = mem[0],zero
+    vmovsd  8(%rdx), %xmm7          ## xmm7 = mem[0],zero
+    vmovsd  16(%rdx), %xmm6         ## xmm6 = mem[0],zero
+    vmovsd  16(%rsi), %xmm11        ## xmm11 = mem[0],zero
+    vmovsd  40(%rsi), %xmm12        ## xmm12 = mem[0],zero
+    vmovsd  64(%rsi), %xmm9         ## xmm9 = mem[0],zero
+    vmovsd  24(%rdx), %xmm3         ## xmm3 = mem[0],zero
+    vmovupd (%rsi), %xmm4
+    vmovupd 8(%rsi), %xmm10
+    vmovhpd (%rsi), %xmm11, %xmm5   ## xmm5 = xmm11[0],mem[0]
+    vinsertf128     $1, %xmm5, %ymm4, %ymm5
+    vunpcklpd       %xmm3, %xmm0, %xmm1 ## xmm1 = xmm0[0],xmm3[0]
+    vmovddup        %xmm0, %xmm0    ## xmm0 = xmm0[0,0]
+    vinsertf128     $1, %xmm1, %ymm0, %ymm0
+...
+</code></pre>
+
+<p>In the code above there is a lot of activity in the <code>xmm</code> registers (which are smaller than <code>ymm</code>).
+indeed, if we benchmark the 3x3 matrix multiply we find that it is in fact slower than the 4x4 version (note that in the
+benchmark below the matrix is wrapped in a <code>Ref</code> here to prevent the compiler from constant folding the benchmark loop):</p>
+
+<pre><code class="language-jl">julia&gt; using BenchmarkTools # import Pkg; Pkg.add(&quot;BenchmarkTools&quot;) to install
+
+julia&gt; for n in (2,3,4)
+           s = Ref(rand(SMatrix{n,n}))
+           @btime $(s)[] * $(s)[]
+       end
+  2.711 ns (0 allocations: 0 bytes)
+  10.273 ns (0 allocations: 0 bytes)
+  6.059 ns (0 allocations: 0 bytes)
+</code></pre>
+
+<p>In these cases, we can explicitly vectorize the code using the SIMD vector library <a href="https://github.com/eschnett/SIMD.jl" target="_blank">SIMD.jl</a>.
+SIMD.jl provides a type <code>Vec{N, T}</code> where <code>N</code> is the number of elements and <code>T</code> is the element type.
+<code>Vec{N, T}</code> is similar to the LLVM <code>&lt;N x T&gt;</code> vector type and operations on <code>Vec</code> typically translate directly to LLVM operations:</p>
+
+<p>For example, below we define some input data and a function <code>g</code> that do some simple arithmetic. We then look at the generated code.</p>
+
+<pre><code class="language-jl">julia&gt; using SIMD
+
+julia&gt; a = Vec((1,2,3,4))
+&lt;4 x Int64&gt;[1, 2, 3, 4]
+
+julia&gt; b = Vec((1,2,3,4))
+&lt;4 x Int64&gt;[1, 2, 3, 4]
+
+julia&gt; g(a, b, c) = a * b + c;
+
+julia&gt; @code_llvm g(a, b, 3)
+...
+  %res.i = mul &lt;4 x i64&gt; %7, %6
+  %8 = insertelement &lt;4 x i64&gt; undef, i64 %3, i32 0
+  %9 = shufflevector &lt;4 x i64&gt; %8, &lt;4 x i64&gt; undef, &lt;4 x i32&gt; zeroinitializer
+  %res.i1 = add &lt;4 x i64&gt; %res.i, %9
+...
+</code></pre>
+
+<p>The <code>mul &lt;4 x i64&gt;</code> is the multiplication of the two vectors, and then the scalar <code>3</code> is &ldquo;broadcasted&rdquo; to a vector
+and added to the result. Feel free to look at <code>@code_native</code> to see the native SIMD instructions.
+We cand use SIMD.jl to write a faster 3x3 matrix multiplication:</p>
+
+<pre><code>function matmul3x3(a::SMatrix, b::SMatrix)
+    D1 = a.data; D2 = b.data
+    # Extract data from matrix into SIMD.jl Vec
+    SV11 = Vec((D1[1], D1[2], D1[3]))
+    SV12 = Vec((D1[4], D1[5], D1[6]))
+    SV13 = Vec((D1[7], D1[8], D1[9]))
+
+    # Form the columns of the resulting matrix
+    r1 = muladd(SV13, D2[3], muladd(SV12, D2[2], SV11 * D2[1]))
+    r2 = muladd(SV13, D2[6], muladd(SV12, D2[5], SV11 * D2[4]))
+    r3 = muladd(SV13, D2[9], muladd(SV12, D2[8], SV11 * D2[7]))
+
+    return SMatrix{3,3}((r1[1], r1[2], r1[3],
+                         r2[1], r2[2], r2[3],
+                         r3[1], r3[2], r3[3]))
+end
+</code></pre>
+
+<p>Let&rsquo;s compare this new version to the default the 3x3 version:</p>
+
+<pre><code class="language-jl">julia&gt; s = Ref(rand(SMatrix{n,n}))
+
+julia&gt; @btime $(s)[] * $(s)[];
+  10.281 ns (0 allocations: 0 bytes)
+
+julia&gt; @btime matmul3x3($(s)[], $(s)[]);
+  4.392 ns (0 allocations: 0 bytes)
+</code></pre>
+
+<p>A guite significant improvement! The code for <code>matmul3x3</code> could, of course, be generalized to work for more sizes, perhaps using a <code>@generated</code> function.</p>
+
+<h2 id="using-intrinsics">Using intrinsics</h2>
+
+<p>All we have done so far has been architecture independent.
+If the CPU only supports an old version of SIMD or perhaps doesn&rsquo;t support SIMD at all, LLVM will just compile the code
+using the latest features that are available, falling back to scalar instructions if needed.
+However, in some cases, we really do want to use a specific instruction in a certain instruction set supported by the CPU.
+The idea for writing this blog post was from reading about
+a new hashing library called <a href="https://github.com/cmuratori/meow_hash" target="_blank">&ldquo;meowhash&rdquo;</a> was released.
+It uses AES decryption which processors now has built-in instructions to perform.
+Looking in the <a href="https://github.com/cmuratori/meow_hash/blob/7a871d7edf4405c2ee361d1401a1eb395926fcca/meow_intrinsics.h#L93" target="_blank">source code</a>
+we can see the macro:</p>
+
+<pre><code class="language-cpp">#define Meow128_AESDEC(Prior, Xor) _mm_aesdec_si128((Prior), (Xor))
+</code></pre>
+
+<p>In the <a href="https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_aesdec_si128&amp;expand=221" target="_blank">Intel Intrinsics Guide</a>
+this intrinsic is described as</p>
+
+<blockquote>
+<p>Perform one round of an AES decryption flow on data (state) in a using the round key in <code>RoundKey</code>, and store the result in <code>dst</code>.</p>
+</blockquote>
+
+<p>If we wanted to port meow-hash to Julia we would need to call this intrinsic in Julia, so how should we do that?</p>
+
+<p>Firstly, Julia allows calling LLVM intrinsics through <code>ccall</code>.
+We can for example call the <code>pow</code> intrinsic for two <code>Float64</code> as:</p>
+
+<pre><code class="language-jl">julia&gt; llvm_pow(a, b) = ccall(&quot;llvm.pow.f64&quot;, llvmcall, Float64, (Float64, Float64), a, b);
+
+julia&gt; llvm_pow(2.0, 3.0)
+8.0
+</code></pre>
+
+<p>So, in order to call our AES decryption instruction, we need to know the corresponding LLVM intrinsic to <code>_mm_aesdec_si128</code>. Since Julia itself doesn&rsquo;t provide us
+with a way to get the intrinsic,
+we need to ask a compiler that does. Fortunately, we can just ask Clang to emit the corresponding LLVM for us.
+Using the <a href="https://godbolt.org/z/vBTDVy" target="_blank">Godbolt compiler webtool</a> makes this very easy.
+In the link to Godbolt we can see the following (slightly cleaned up):</p>
+
+<pre><code>define &lt;2 x i64&gt; @_Z6aesdecDv2_xS_(&lt;2 x i64&gt;, &lt;2 x i64&gt;) local_unnamed_addr #0 !dbg !262 {
+  %3 = call &lt;2 x i64&gt; @llvm.x86.aesni.aesdec(&lt;2 x i64&gt; %0, &lt;2 x i64&gt; %1) #3, !dbg !270
+  ret &lt;2 x i64&gt; %3, !dbg !271
+}
+</code></pre>
+
+<p>So the intrinsic is called <code>x86.aesni.aesdec</code>. Now, we just need to know how to pass in the argument types which are
+<code>&lt;2 x i64&gt;</code>. A normal Julia tuple of integers will not do because it gets passed to LLVM as an <a href="https://llvm.org/docs/LangRef.html#array-type" target="_blank"><code>array</code></a>
+and not a <code>vector</code>
+Instead, we need to send in a tuple with special elements of the type <a href="https://docs.julialang.org/en/v1/base/simd-types/" target="_blank"><code>VecElement</code></a>.
+Julia treats a tuple of <code>VecElement</code>s special and will pass it to LLVM as a <code>vector</code>.</p>
+
+<p>All that is now left is to define some convenience typealias, create our inputs and call the intrinsic:</p>
+
+<pre><code class="language-jl">julia&gt; const __m128i = NTuple{2, VecElement{Int64}};
+
+julia&gt; aesdec(a, roundkey) = ccall(&quot;llvm.x86.aesni.aesdec&quot;, llvmcall, __m128i, (__m128i, __m128i), a, roundkey);
+
+julia&gt; aesdec(__m128i((213132, 13131)), __m128i((31231, 43213)))
+(VecElement{Int64}(-1627618977772868053), VecElement{Int64}(999044532936195731))
+</code></pre>
+
+<p>So now, we are in a position to port Meow Hash to Julia!</p>
+
+<p>It should be stated that intrinsics should only be used as a last resort. It will lead to your code being less portable
+and harder to maintain.</p>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>There are many ways of doing SIMD in Julia. From letting the compiler to do the the job to using a SIMD library, and finally
+getting our hands dirty and use the intrinsics. Which way is best will depend on your application but hopefully, this helped a bit
+with showing what options are available.</p>
+
+    </div>
+
+  </article>
+
+  <nav>
+  <ul class="pager">
+    
+    <li class="previous"><a href="http://kristofferc.github.io/post/julia_issue/"><span
+      aria-hidden="true">&larr;</span> Julia has an issue...</a></li>
+    
+
+    
+  </ul>
+</nav>
+
+  
+<section id="comments">
+  <div id="disqus_thread">
+    <div id="disqus_thread"></div>
+<script type="text/javascript">
+    var disqus_shortname = 'kristoffer-carlsson';
+    var disqus_identifier = 'http:\/\/kristofferc.github.io\/post\/intrinsics\/';
+    var disqus_title = 'SIMD and SIMD-intrinsics in Julia';
+    var disqus_url = 'http:\/\/kristofferc.github.io\/post\/intrinsics\/';
+
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+  </div>
+</section>
+
+
+
+</div>
+<footer class="site-footer">
+  <div class="container">
+    <p class="powered-by">
+
+      &copy; 2016 Kristoffer Carlsson &middot; 
+
+      Powered by the <a href="https://github.com/gcushen/hugo-academic" target="_blank">Academic
+      theme</a> for <a href="http://gohugo.io" target="_blank">Hugo</a>.
+
+      <span class="pull-right" aria-hidden="true">
+        <a href="#" id="back_to_top">
+          <span class="button_icon">
+            <i class="fa fa-chevron-up fa-2x"></i>
+          </span>
+        </a>
+      </span>
+
+    </p>
+  </div>
+</footer>
+
+    <script src="//cdnjs.cloudflare.com/ajax/libs/gsap/1.18.4/TweenMax.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/gsap/latest/plugins/ScrollToPlugin.min.js"></script>
+    <script src="/js/jquery-1.12.3.min.js"></script>
+    <script src="/js/bootstrap.min.js"></script>
+    <script src="/js/isotope.pkgd.min.js"></script>
+    <script src="/js/hugo-academic.js"></script>
+    
+
+    
+    <script>
+        (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+        (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+        m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+        })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+        ga('create', 'UA-89496017-1', 'auto');
+        ga('send', 'pageview');
+
+         
+        var links = document.querySelectorAll('a');
+        Array.prototype.map.call(links, function(item) {
+            if (item.host != document.location.host) {
+                item.addEventListener('click', function() {
+                    var action = item.getAttribute('data-action') || 'follow';
+                    ga('send', 'event', 'outbound', action, item.href);
+                });
+            }
+        });
+    </script>
+    
+
+    
+    <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.3.0/highlight.min.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+
+    
+    
+    <script type="text/x-mathjax-config">
+        MathJax.Hub.Config({ tex2jax: { inlineMath: [['$','$'], ['\\(','\\)']] } });
+    </script>
+    <script async src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_CHTML"></script>
+    
+
+  </body>
+</html>
+

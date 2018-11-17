@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="theme" content="hugo-academic">
+  <meta name="generator" content="Hugo 0.19-DEV" />
+  <meta name="author" content="Kristoffer Carlsson">
+  <meta name="description" content="Software engineer">
+
+  <link rel="stylesheet" href="/css/highlight.min.css">
+  <link rel="stylesheet" href="/css/bootstrap.min.css">
+  <link rel="stylesheet" href="/css/font-awesome.min.css">
+  <link rel="stylesheet" href="/css/academicons.min.css">
+  <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Lato:400,700|Merriweather|Roboto+Mono">
+  <link rel="stylesheet" href="/css/hugo-academic.css">
+  
+  <link rel="stylesheet" href="/css/custom.css">
+  
+
+  <link rel="alternate" href="http://KristofferC.github.io/index.xml" type="application/rss+xml" title="Kristoffer Carlsson">
+  <link rel="feed" href="http://KristofferC.github.io/index.xml" type="application/rss+xml" title="Kristoffer Carlsson">
+
+  <link rel="icon" type="image/png" href="/img/icon.png">
+  <link rel="apple-touch-icon" type="image/png" href="/img/apple-touch-icon.png">
+
+  <link rel="canonical" href="http://kristofferc.github.io/post/julia_issue/">
+
+  
+
+  <title>Julia has an issue... | Kristoffer Carlsson</title>
+
+</head>
+<body id="top" data-spy="scroll" data-target="#navbar-main" data-offset="71">
+
+<nav class="navbar navbar-default navbar-fixed-top" id="navbar-main">
+  <div class="container">
+
+    
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse"
+              data-target=".navbar-collapse" aria-expanded="false">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="/">Kristoffer Carlsson</a>
+    </div>
+
+    
+    <div class="collapse navbar-collapse">
+
+      
+      <ul class="nav navbar-nav navbar-right">
+        
+        <li class="nav-item">
+          <a href="/#about">
+            Home
+          </a>
+        </li>
+        
+        <li class="nav-item">
+          <a href="/#posts">
+            Posts
+          </a>
+        </li>
+        
+        <li class="nav-item">
+          <a href="/#opensource">
+            Open source
+          </a>
+        </li>
+        
+        <li class="nav-item">
+          <a href="/#contact">
+            Contact
+          </a>
+        </li>
+        
+      </ul>
+
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+
+  <article class="article" itemscope itemtype="http://schema.org/Article">
+
+    
+
+    <h1 itemprop="name">Julia has an issue...</h1>
+
+    
+
+<div class="article-metadata">
+
+  <span class="article-date">
+    <time datetime="2017-05-28 15:00:00 &#43;0000 UTC" itemprop="datePublished">
+      Sun, May 28, 2017
+    </time>
+  </span>
+
+  
+  
+  
+  <span class="article-tags">
+    <i class="fa fa-tags"></i>
+    
+    <a class="article-tag-link" href="http://kristofferc.github.iotags/github">github</a
+    >, 
+    
+    <a class="article-tag-link" href="http://kristofferc.github.iotags/open-source">open source</a
+    >, 
+    
+    <a class="article-tag-link" href="http://kristofferc.github.iotags/community">community</a
+    >, 
+    
+    <a class="article-tag-link" href="http://kristofferc.github.iotags/julia">julia</a
+    >
+    
+  </span>
+  
+  
+
+  
+  
+<div class="share-box" aria-hidden="true">
+  <ul class="share">
+    <li>
+      <a class="facebook"
+         href="https://www.facebook.com/sharer.php?u=http%3a%2f%2fkristofferc.github.io%2fpost%2fjulia_issue%2f"
+         target="_blank">
+        <i class="fa fa-facebook"></i>
+      </a>
+    </li>
+    <li>
+      <a class="twitter"
+         href="https://twitter.com/intent/tweet?text=Julia%20has%20an%20issue...&amp;url=http%3a%2f%2fkristofferc.github.io%2fpost%2fjulia_issue%2f"
+         target="_blank">
+        <i class="fa fa-twitter"></i>
+      </a>
+    </li>
+    <li>
+      <a class="linkedin"
+         href="https://www.linkedin.com/shareArticle?mini=true&amp;url=http%3a%2f%2fkristofferc.github.io%2fpost%2fjulia_issue%2f&amp;title=Julia%20has%20an%20issue..."
+         target="_blank">
+        <i class="fa fa-linkedin"></i>
+      </a>
+    </li>
+    <li>
+      <a class="weibo"
+         href="http://service.weibo.com/share/share.php?url=http%3a%2f%2fkristofferc.github.io%2fpost%2fjulia_issue%2f&amp;title=Julia%20has%20an%20issue..."
+         target="_blank">
+        <i class="fa fa-weibo"></i>
+      </a>
+    </li>
+    <li>
+      <a class="email"
+         href="mailto:?subject=Julia%20has%20an%20issue...&amp;body=http%3a%2f%2fkristofferc.github.io%2fpost%2fjulia_issue%2f">
+        <i class="fa fa-envelope"></i>
+      </a>
+    </li>
+  </ul>
+</div>
+
+
+  
+
+</div>
+
+
+    <div class="article-style" itemprop="articleBody">
+      
+
+<p>As most of us in the <a href="https://julialang.org/" target="_blank">Julia</a> community know, Julia has an issue.
+In fact, looking at the <a href="https://github.com/JuliaLang/julia/" target="_blank">Julia repository</a> we see that
+there are (at time of writing) 11865 issues, where 1872 are open and 9993 are closed.
+An interesting question to ask is:</p>
+
+<ul>
+<li>How has the ratio between open and closed issues varied over the development of Julia? And how about for pull requests (PRs)?</li>
+</ul>
+
+<p>In this post, the aim is to answer the question above using the data that can be scraped from the GitHub repo.</p>
+
+<h2 id="getting-the-data">Getting the data</h2>
+
+<p>A large amount of data for a repository hosted on GitHub can be found via the <a href="https://developer.github.com/v3/" target="_blank">GitHub API</a>.
+The <a href="https://github.com/JuliaWeb/GitHub.jl" target="_blank"><em>GitHub.jl</em></a> package provides a convenient
+interface to communicate with this API from Julia.</p>
+
+<p>Getting the data for the issues (and PRs) is as simple as:</p>
+
+<pre><code class="language-jl">import GitHub
+myauth = GitHub.authenticate(ENV[&quot;GITHUB_AUTH&quot;])    
+repo = GitHub.repo(&quot;JuliaLang/julia&quot;)
+myparams = Dict(&quot;state&quot; =&gt; &quot;all&quot;, &quot;per_page&quot; =&gt; 100, &quot;page&quot; =&gt; 1);
+issues, page_data = GitHub.issues(repo; params = myparams, auth = myauth)
+</code></pre>
+
+<p>where I have created a &ldquo;GitHub access token&rdquo; and saved it in the environment variable <code>GITHUB_AUTH</code>. Note here that the function name <code>GitHub.issues</code> is a bit of a misnomer.
+What is returned is actually both issues and PRs.
+The variable <code>issues</code> now contains a <code>Vector</code> of all the issues and PRs made to the Julia repo.
+Each element in the vector is an <code>Issue</code>, which is a <code>struct</code> containing fields
+corresponding to the keys of the returned JSON from the GitHub REST API.
+In order to not have to rescrape the data every time Julia is started, it would be nice to
+store it to disk. The standard way of storing Julia data is by using the <a href="https://github.com/JuliaIO/JLD.jl" target="_blank">*JLD.jl package</a>.
+Unfortunately, <em>JLD.jl</em> has some problems handling <code>Nullable</code>&rsquo;s (see <a href="https://github.com/JuliaIO/JLD.jl/issues/47" target="_blank">this issue</a>).
+However, there is an unregistered package called <a href="https://github.com/simonster/JLD2.jl" target="_blank"><em>JLD2.jl</em></a>
+that does support <code>Nullable</code>&rsquo;s. The code below uses <em>JLD2</em> to save the issues to a <code>.jld</code> file
+and then reload them again:</p>
+
+<pre><code class="language-jl">using JLD2
+
+function save_issues(issues)
+    f = jldopen(&quot;issues.jld&quot;, &quot;w&quot;)
+    write(f, &quot;issues&quot;, issues)
+    close(f)
+end
+
+function load_issues()
+    f = jldopen(&quot;issues.jld&quot;, &quot;r&quot;)
+    issues = read(f, &quot;issues&quot;)
+    close(f)
+    return issues
+end
+</code></pre>
+
+<p>I put up the resulting <code>.jld</code> file <a href="/issues.zip">here</a> if you don&rsquo;t feel like doing the scraping yourself.</p>
+
+<h2 id="digression-a-datevector">Digression: a <code>DateVector</code></h2>
+
+<p>In this post we will deal with <code>Vector</code>&rsquo;s that are naturally indexed by
+<code>Date</code>&rsquo;s instead of standard integers starting at 1. Therefore, using the powerful
+<a href="https://docs.julialang.org/en/release-0.5/manual/interfaces/#indexing" target="_blank"><code>AbstractVector</code> interface</a>
+we easily create a <code>Vector</code> that can be indexed with single <code>Date</code>&rsquo;s ranges consisting of <code>Date</code>&rsquo;s etc.</p>
+
+<p>The implementation below should be fairly self explanatory. We create the <code>DateVector</code> struct
+wrapping a <code>Vector</code> and two <code>Date</code>&rsquo;s (the start and end date) and define a minimum amount of methods needed.
+<code>Vector</code>&rsquo;s with non conventional indices are still quite new in Julia so not everything work
+perfectly with them. Here, we just implement the functionality needed
+to set and retrieve data using indexing with <code>Date</code>s.</p>
+
+<pre><code class="language-jl">struct DateVector{T} &lt;: AbstractVector{T}
+    v::Vector{T}
+    startdate::Date
+    enddate::Date
+
+    function DateVector(v::Vector{T}, startdate::Date, enddate::Date) where T
+        len = (enddate - startdate) ÷ Dates.Day(1) + 1
+        if length(v) != len
+            throw(ArgumentError(&quot;length of vector v $(length(v)) not equal to date range $len&quot;))
+        end
+        new{T}(v, startdate, enddate)
+    end
+end
+
+Base.endof(dv::DateVector) = dv.enddate
+Base.indices(dv::DateVector) = (dv.startdate:dv.enddate,)
+Base.getindex(dv::DateVector, date::Date) = dv.v[(date - dv.startdate) ÷ Dates.Day(1) + 1]
+Base.setindex!(dv::DateVector, v, date::Date) = dv.v[(date - dv.startdate) ÷ Dates.Day(1) + 1] = v
+Base.checkindex(::Type{Bool}, d::Range{Date}, v::Range{Date}) = length(v) == 0 || (first(v) in d &amp;&amp; last(v) in d)
+Base.Array(dv::DateVector) = dv.v
+</code></pre>
+
+<p>The <code>DateVector</code> can now be seen in action by for example indexing into it
+with a <code>Range</code> of <code>Date</code>&rsquo;s:</p>
+
+<pre><code class="language-jl">julia&gt; v = rand(10);
+
+julia&gt; dv = DateVector(v, Date(&quot;2015-01-01&quot;), Date(&quot;2015-01-10&quot;));
+
+julia&gt; dv[Date(&quot;2015-01-02&quot;):Date(&quot;2015-01-05&quot;)]
+4-element Array{Float64,1}:
+ 0.299136
+ 0.898991
+ 0.0626245
+ 0.585839
+
+julia&gt; v[2:5]
+4-element Array{Float64,1}:
+ 0.299136
+ 0.898991
+ 0.0626245
+ 0.585839
+</code></pre>
+
+<h2 id="total-number-of-opened-and-closed-issues-prs-over-time">Total number of opened and closed issues / PRs over time</h2>
+
+<p>For a given issue we can check the time it was created, what state it is in (open / closed),
+what time it was eventually closed and if it is, in fact, a pull request and not an issue:</p>
+
+<pre><code class="language-jl">julia&gt; get(issues[1].created_at)
+2017-05-23T18:09:45
+
+julia&gt; get(issues[1].state)
+&quot;open&quot;
+
+julia&gt; isnull(issues[1].closed_at)
+true
+
+julia&gt; isnull(issues[1].pull_request) # pull_request is null so this is an issue
+true
+</code></pre>
+
+<p>It is now quite easy to write a function that takes an issue and returns two <code>Date</code>-intervals, the first
+for when the issue was opened, and the second for when it was closed up until today.
+If the issue is still open, we make sure to return an empty interval for the closed period.</p>
+
+<pre><code class="language-jl">function open_closed_range(issue)
+    opened = Date(get(issue.created_at))
+    if get(issue.state) == &quot;closed&quot;
+        closed = Date(get(issue.closed_at))
+    else
+        closed = Date(now())
+    end
+    return opened:closed, (closed + Dates.Day(1)):Date(now())
+end
+</code></pre>
+
+<p>As an example, we can test this function on an issue:</p>
+
+<pre><code class="language-jl">julia&gt; open_closed_range(issues[200])
+(2017-05-13:1 day:2017-05-14, 2017-05-15:1 day:2017-05-29)
+</code></pre>
+
+<p>So, here we see that the issue was opened between 2017-05-13 and 2017-05-14 (and then got closed).
+Now, we can simply create two <code>DateVector</code>&rsquo;s, one that will contain the total number of opened
+issues and the second the total number of closed issues / PRs for a given date</p>
+
+<pre><code class="language-jl">function count_closed_opened(PRs::Bool, issues)
+    min_date = Date(get(minimum(issue.created_at for issue in issues)))
+    days_since_min_date = (Date(now()) - min_date) ÷ Dates.Day(1) + 1
+    closed_counter = DateVector(zeros(Int, days_since_min_date), min_date, Date(now()))
+    open_counter = DateVector(zeros(Int, days_since_min_date), min_date, Date(now()))
+
+    for issue in filter(x -&gt; !isnull(x.pull_request) == PRs, issues)
+        open_range, closed_range = open_closed_range(issue)
+        closed_counter[closed_range] += 1
+        open_counter[open_range] += 1
+    end
+
+    return open_counter, closed_counter
+end
+</code></pre>
+
+<p>For a given date, the number of opened and closed issues are now readily available:</p>
+
+<pre><code class="language-jl">julia&gt; opened, closed = count_closed_opened(false, issues);
+
+julia&gt; opened[Date(&quot;2016-01-1&quot;)]
+288
+
+julia&gt; closed[Date(&quot;2016-01-1&quot;)]
+5713
+</code></pre>
+
+<p>We could plot these now using one of our favorite plotting packages. I am personally a LaTeX fan and one of the popular
+plotting packages for LaTeX is pgfplots. <a href="https://github.com/KristofferC/PGFPlotsX" target="_blank"><em>PGFPlotsX.jl</em></a> is a Julia package that makes
+it quite easy to interface with pgfplots so this is what I used here. The total number of open and
+closed issues for different dates is shown below.</p>
+
+
+<figure >
+    
+        <img src="/img/open_close.png" />
+    
+    
+</figure>
+
+
+<p>We can see that in the early development of Julia, PRs was not really used.
+Also, the number of closed issues and PRs seem to grow at approximately the same rate.
+A noticeable difference is in the number of <em>opened</em> issues and PRs. Open PRs accumulate
+significantly slower than the number of open issues. This is likely because an open PR
+become stale quite quickly while issues can take a long time to fix, or does not really have
+a clear actionable purpose.</p>
+
+<p>Let&rsquo;s plot the ratio between open and closed issues / PRs:</p>
+
+
+<figure >
+    
+        <img src="/img/ratio.png" />
+    
+    
+</figure>
+
+
+<p>To reduce some of the noise, I started the plot at 2013-06-01. The ratio between open to closed issues seems to slowly increase while for PRs, the number have stabilized at around 0.05.</p>
+
+<h2 id="conclusions">Conclusions</h2>
+
+<p>Using the GitHub API it is quite easy to do some data anlysis on a repo.
+It is hard to say how much actual usefulness can be extracted from the data here
+but sometimes it is fun to just hack on data.
+Possible future work could be to do the same analysis here but for other programming language repos.
+Right now, looking at e.g. the <a href="https://github.com/rust-lang/rust" target="_blank">Rust repo</a> they have an open to closed PR ratio of 63 / 21200 ≈ 0.003 which is 20 times lower than Julia. Does this mean that the Julia community need to be better at reviewing PRs to make sure they eventually get merged / closed? Or is the barrier to open a PR to Rust higher so that only PRs with high success of merging gets opened?</p>
+
+    </div>
+
+  </article>
+
+  <nav>
+  <ul class="pager">
+    
+    <li class="previous"><a href="http://kristofferc.github.io/post/tokenize/"><span
+      aria-hidden="true">&larr;</span> What identifier is the most common in Julia? The answer might surprise you!</a></li>
+    
+
+    
+    <li class="next"><a href="http://kristofferc.github.io/post/intrinsics/">SIMD and SIMD-intrinsics in Julia <span
+      aria-hidden="true">&rarr;</span></a></li>
+    
+  </ul>
+</nav>
+
+  
+<section id="comments">
+  <div id="disqus_thread">
+    <div id="disqus_thread"></div>
+<script type="text/javascript">
+    var disqus_shortname = 'kristoffer-carlsson';
+    var disqus_identifier = 'http:\/\/kristofferc.github.io\/post\/julia_issue\/';
+    var disqus_title = 'Julia has an issue...';
+    var disqus_url = 'http:\/\/kristofferc.github.io\/post\/julia_issue\/';
+
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+  </div>
+</section>
+
+
+
+</div>
+<footer class="site-footer">
+  <div class="container">
+    <p class="powered-by">
+
+      &copy; 2016 Kristoffer Carlsson &middot; 
+
+      Powered by the <a href="https://github.com/gcushen/hugo-academic" target="_blank">Academic
+      theme</a> for <a href="http://gohugo.io" target="_blank">Hugo</a>.
+
+      <span class="pull-right" aria-hidden="true">
+        <a href="#" id="back_to_top">
+          <span class="button_icon">
+            <i class="fa fa-chevron-up fa-2x"></i>
+          </span>
+        </a>
+      </span>
+
+    </p>
+  </div>
+</footer>
+
+    <script src="//cdnjs.cloudflare.com/ajax/libs/gsap/1.18.4/TweenMax.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/gsap/latest/plugins/ScrollToPlugin.min.js"></script>
+    <script src="/js/jquery-1.12.3.min.js"></script>
+    <script src="/js/bootstrap.min.js"></script>
+    <script src="/js/isotope.pkgd.min.js"></script>
+    <script src="/js/hugo-academic.js"></script>
+    
+
+    
+    <script>
+        (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+        (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+        m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+        })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+        ga('create', 'UA-89496017-1', 'auto');
+        ga('send', 'pageview');
+
+         
+        var links = document.querySelectorAll('a');
+        Array.prototype.map.call(links, function(item) {
+            if (item.host != document.location.host) {
+                item.addEventListener('click', function() {
+                    var action = item.getAttribute('data-action') || 'follow';
+                    ga('send', 'event', 'outbound', action, item.href);
+                });
+            }
+        });
+    </script>
+    
+
+    
+    <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.3.0/highlight.min.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+
+    
+    
+    <script type="text/x-mathjax-config">
+        MathJax.Hub.Config({ tex2jax: { inlineMath: [['$','$'], ['\\(','\\)']] } });
+    </script>
+    <script async src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_CHTML"></script>
+    
+
+  </body>
+</html>
+

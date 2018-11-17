@@ -1,0 +1,1006 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Julia on Kristoffer Carlsson</title>
+    <link>http://kristofferc.github.io/tags/julia/index.xml</link>
+    <description>Recent content in Julia on Kristoffer Carlsson</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <copyright>&amp;copy; 2016 Kristoffer Carlsson</copyright>
+    <atom:link href="/tags/julia/index.xml" rel="self" type="application/rss+xml" />
+    
+    <item>
+      <title>SIMD and SIMD-intrinsics in Julia</title>
+      <link>http://kristofferc.github.io/post/intrinsics/</link>
+      <pubDate>Tue, 13 Nov 2018 15:00:00 +0000</pubDate>
+      
+      <guid>http://kristofferc.github.io/post/intrinsics/</guid>
+      <description>
+
+&lt;h2 id=&#34;introduction&#34;&gt;Introduction&lt;/h2&gt;
+
+&lt;p&gt;The good old days of processors getting a higher clock-speed every year have been over for quite some time now.
+Instead, other features of CPUs are getting improved like the number of cores, the size of the cache, and the instruction set
+they support.
+In order to be responsible programmers, we should try our best to take advantage of the features the hardware
+provides.
+One way of doing this is multithreading which is exploiting the fact that modern CPUs have multiple cores and
+can run multiple (possibly independent) instruction streams simultaneously.
+Another feature to take advantage of is that a single core on modern processors can do operations on &lt;strong&gt;multiple&lt;/strong&gt; values in one instruction (called SIMD - Single Instruction Multiple Data).&lt;/p&gt;
+
+&lt;p&gt;This article is intended to give a short summary of using SIMD in the Julia programming language.
+It is intended for people already quite familiar with Julia.
+The first part is likely familiar to people that have been using Julia for a while, the latter part, which is about explicitly calling
+SIMD intrinsics might be new. Feel free to scroll down to the intrinsic bit or read the TLDR about it below.&lt;/p&gt;
+
+&lt;h2 id=&#34;tldr-simd-intrinsics&#34;&gt;TLDR (SIMD intrinsics)&lt;/h2&gt;
+
+&lt;p&gt;To call an intrinsic like &lt;code&gt;_mm_aesdec_si128&lt;/code&gt;:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;call the intrinsic from C&lt;/li&gt;
+&lt;li&gt;use Clang with &lt;code&gt;-emit-llvm&lt;/code&gt; to figure out the LLVM intrinsic (&lt;a href=&#34;https://godbolt.org/z/vBTDVy&#34; target=&#34;_blank&#34;&gt;for example&lt;/a&gt;)&lt;/li&gt;
+&lt;li&gt;call the intrinsic from Julia with &lt;code&gt;ccall(&amp;quot;insert_llvm_intrinsic&amp;quot;, llvmcall, return_type, input_types, args...)&lt;/code&gt;
+where an LLVM vector type like &lt;code&gt;&amp;lt;2 x i64&amp;gt;&lt;/code&gt; is translated to the Julia type &lt;code&gt;NTuple{2, VecElement{Int64}}&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;For example:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;julia&amp;gt; const __m128i = NTuple{2, VecElement{Int64}};
+
+julia&amp;gt; aesdec(a, roundkey) = ccall(&amp;quot;llvm.x86.aesni.aesdec&amp;quot;, llvmcall, __m128i, (__m128i, __m128i), a, roundkey);
+
+julia&amp;gt; aesdec(__m128i((213132, 13131)), __m128i((31231, 43213)))
+(VecElement{Int64}(-1627618977772868053), VecElement{Int64}(999044532936195731))
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h2 id=&#34;automatic-simd&#34;&gt;Automatic SIMD&lt;/h2&gt;
+
+&lt;p&gt;The backend compiler for Julia is LLVM which can in some cases vectorize loops using the &lt;a href=&#34;https://llvm.org/docs/Vectorizers.html#the-loop-vectorizer&#34; target=&#34;_blank&#34;&gt;Loop Vectorizer&lt;/a&gt;
+and it can even promote scalar code to SIMD operations using the &lt;a href=&#34;https://llvm.org/docs/Vectorizers.html#the-loop-vectorizer&#34; target=&#34;_blank&#34;&gt;SLP Vectorizer&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h3 id=&#34;automatic-loop-vectorization&#34;&gt;Automatic loop vectorization&lt;/h3&gt;
+
+&lt;p&gt;Defining a simple loop that does an &amp;ldquo;axpy&amp;rdquo; like operation &lt;code&gt;c .= a .* b&lt;/code&gt;&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;function axpy!(c::Array, a::Array, b::Array)
+    @assert length(a) == length(b) == length(c)
+    @inbounds for i in 1:length(a)
+        c[i] = a[i] * b[i]
+    end
+end
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;and using the code introspection tool to inspect the generated LLVM IR, we see:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;julia&amp;gt; V64 = Vector{Float64}
+Array{Float64,1}
+
+julia&amp;gt; code_llvm(axpy!, Tuple{V64, V64, V64})
+...
+  %56 = fmul &amp;lt;4 x double&amp;gt; %wide.load, %wide.load24
+  %57 = fmul &amp;lt;4 x double&amp;gt; %wide.load21, %wide.load25
+  %58 = fmul &amp;lt;4 x double&amp;gt; %wide.load22, %wide.load26
+  %59 = fmul &amp;lt;4 x double&amp;gt; %wide.load23, %wide.load27
+...
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;The type &lt;code&gt;&amp;lt;4 x double&amp;gt;&lt;/code&gt; is in LLVM IR terminology a &lt;a href=&#34;https://llvm.org/docs/LangRef.html#vector-type&#34; target=&#34;_blank&#34;&gt;vector&lt;/a&gt;, and is here the resulting type
+of adding two arguments of the same vector type.
+As a note, LLVM has also decided to unroll the loop by a factor of four.
+Moving on to look at the assembly, we see that indeed (at least on the computer of the author), this LLVM IR has turned into processor instructions that
+does four multiplications in one instruction.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;julia&amp;gt; code_native(axpy!, Tuple{V64, V64, V64})
+ vmulpd  (%esi,%ecx,8), %ymm0, %ymm0
+ vmulpd  32(%esi,%ecx,8), %ymm1, %ymm1
+ vmulpd  64(%esi,%ecx,8), %ymm2, %ymm2
+ vmulpd  96(%esi,%ecx,8), %ymm3, %ymm3
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;The instruction &lt;a href=&#34;https://www.felixcloutier.com/x86/MULPD.html&#34; target=&#34;_blank&#34;&gt;&lt;code&gt;vmulpd&lt;/code&gt;&lt;/a&gt; does &amp;ldquo;packed&amp;rdquo; double-precision floating point addition and
+the &lt;code&gt;ymm&lt;/code&gt; registers fit 256 bits which can thus fit four 64-bit floats.&lt;/p&gt;
+
+&lt;p&gt;Any type of control flow inside the loop will likely mean the loop will not vectorize. That is why &lt;code&gt;@inbounds&lt;/code&gt; is important here,
+otherwise we have control flow to the part that throws the bounds error.&lt;/p&gt;
+
+&lt;p&gt;Note that for reductions using non-associative arithmetic (like floating point airthmetic) you will have to tell the compiler that it is ok to reorder
+the accumulations into the reduction variable using the &lt;code&gt;@simd&lt;/code&gt; macro.&lt;/p&gt;
+
+&lt;h3 id=&#34;automatic-scalar-vectorization&#34;&gt;Automatic scalar vectorization&lt;/h3&gt;
+
+&lt;p&gt;LLVM can also auto-vectorize scalar operations that follow a certain pattern. Here
+is a function that does not contain any loop:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;function mul_tuples(a::NTuple{4,Float64}, b::NTuple{4,Float64})
+    return (a[1]*b[1], a[2]*b[2], a[3]*b[3], a[4]*b[4])
+end
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;The function &lt;code&gt;mul_tuples&lt;/code&gt; just multiplies numbers from two tuples of length four and forms a new tuple.
+The pattern here should be obvious, it is clear that the four additions
+could be done at the same time.
+LLVM can identify such patterns and generate code that uses SIMD. Again,
+inspecting the code we find that SIMD instructions are used:&lt;/p&gt;
+
+&lt;p&gt;LLVM IR:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;julia&amp;gt; code_llvm(mul_tuples, Tuple{NTuple{4,Float64}, NTuple{4, Float64}})
+...
+  %7 = fmul &amp;lt;4 x double&amp;gt; %4, %6
+...
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Native code:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;julia&amp;gt; code_native(mul_tuples, Tuple{NTuple{4,Float64}, NTuple{4, Float64}})
+...
+  vmulpd  (%edx), %ymm0, %ymm0
+...
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;The scalar auto-vectorizer is quite impressive. It manages for example to very nicely vectorize a 4x4 matrix multiplication
+in the &lt;a href=&#34;https://github.com/JuliaArrays/StaticArrays.jl&#34; target=&#34;_blank&#34;&gt;StaticArrays.jl package&lt;/a&gt; which you can see doing something like&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;julia&amp;gt; using StaticArrays # import Pkg, Pkg.add(&amp;quot;StaticArrays&amp;quot;) to install
+
+julia&amp;gt; @code_native rand(SMatrix{4,4}) * rand(SMatrix{4,4})
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;which almost only uses SIMD-instructions without StaticArrays.jl having to do any work for it.&lt;/p&gt;
+
+&lt;h1 id=&#34;simd-using-a-vector-library&#34;&gt;SIMD using  a vector library&lt;/h1&gt;
+
+&lt;p&gt;While the auto-vectorizer can sometimes work pretty well, it quite easily gets confused. Alternatively, the data
+is not laid out in such a way that it is allowed or beneficial to vectorize the code.
+For example, trying a matrix multiplication of size
+3x3 instead of 4x4 matrices in StaticArrays.jl and things are not so pretty anymore:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;@code_native rand(SMatrix{3,3}) * rand(SMatrix{3,3})
+    vmovsd  (%rdx), %xmm0           ## xmm0 = mem[0],zero
+    vmovsd  8(%rdx), %xmm7          ## xmm7 = mem[0],zero
+    vmovsd  16(%rdx), %xmm6         ## xmm6 = mem[0],zero
+    vmovsd  16(%rsi), %xmm11        ## xmm11 = mem[0],zero
+    vmovsd  40(%rsi), %xmm12        ## xmm12 = mem[0],zero
+    vmovsd  64(%rsi), %xmm9         ## xmm9 = mem[0],zero
+    vmovsd  24(%rdx), %xmm3         ## xmm3 = mem[0],zero
+    vmovupd (%rsi), %xmm4
+    vmovupd 8(%rsi), %xmm10
+    vmovhpd (%rsi), %xmm11, %xmm5   ## xmm5 = xmm11[0],mem[0]
+    vinsertf128     $1, %xmm5, %ymm4, %ymm5
+    vunpcklpd       %xmm3, %xmm0, %xmm1 ## xmm1 = xmm0[0],xmm3[0]
+    vmovddup        %xmm0, %xmm0    ## xmm0 = xmm0[0,0]
+    vinsertf128     $1, %xmm1, %ymm0, %ymm0
+...
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;In the code above there is a lot of activity in the &lt;code&gt;xmm&lt;/code&gt; registers (which are smaller than &lt;code&gt;ymm&lt;/code&gt;).
+indeed, if we benchmark the 3x3 matrix multiply we find that it is in fact slower than the 4x4 version (note that in the
+benchmark below the matrix is wrapped in a &lt;code&gt;Ref&lt;/code&gt; here to prevent the compiler from constant folding the benchmark loop):&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;julia&amp;gt; using BenchmarkTools # import Pkg; Pkg.add(&amp;quot;BenchmarkTools&amp;quot;) to install
+
+julia&amp;gt; for n in (2,3,4)
+           s = Ref(rand(SMatrix{n,n}))
+           @btime $(s)[] * $(s)[]
+       end
+  2.711 ns (0 allocations: 0 bytes)
+  10.273 ns (0 allocations: 0 bytes)
+  6.059 ns (0 allocations: 0 bytes)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;In these cases, we can explicitly vectorize the code using the SIMD vector library &lt;a href=&#34;https://github.com/eschnett/SIMD.jl&#34; target=&#34;_blank&#34;&gt;SIMD.jl&lt;/a&gt;.
+SIMD.jl provides a type &lt;code&gt;Vec{N, T}&lt;/code&gt; where &lt;code&gt;N&lt;/code&gt; is the number of elements and &lt;code&gt;T&lt;/code&gt; is the element type.
+&lt;code&gt;Vec{N, T}&lt;/code&gt; is similar to the LLVM &lt;code&gt;&amp;lt;N x T&amp;gt;&lt;/code&gt; vector type and operations on &lt;code&gt;Vec&lt;/code&gt; typically translate directly to LLVM operations:&lt;/p&gt;
+
+&lt;p&gt;For example, below we define some input data and a function &lt;code&gt;g&lt;/code&gt; that do some simple arithmetic. We then look at the generated code.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;julia&amp;gt; using SIMD
+
+julia&amp;gt; a = Vec((1,2,3,4))
+&amp;lt;4 x Int64&amp;gt;[1, 2, 3, 4]
+
+julia&amp;gt; b = Vec((1,2,3,4))
+&amp;lt;4 x Int64&amp;gt;[1, 2, 3, 4]
+
+julia&amp;gt; g(a, b, c) = a * b + c;
+
+julia&amp;gt; @code_llvm g(a, b, 3)
+...
+  %res.i = mul &amp;lt;4 x i64&amp;gt; %7, %6
+  %8 = insertelement &amp;lt;4 x i64&amp;gt; undef, i64 %3, i32 0
+  %9 = shufflevector &amp;lt;4 x i64&amp;gt; %8, &amp;lt;4 x i64&amp;gt; undef, &amp;lt;4 x i32&amp;gt; zeroinitializer
+  %res.i1 = add &amp;lt;4 x i64&amp;gt; %res.i, %9
+...
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;The &lt;code&gt;mul &amp;lt;4 x i64&amp;gt;&lt;/code&gt; is the multiplication of the two vectors, and then the scalar &lt;code&gt;3&lt;/code&gt; is &amp;ldquo;broadcasted&amp;rdquo; to a vector
+and added to the result. Feel free to look at &lt;code&gt;@code_native&lt;/code&gt; to see the native SIMD instructions.
+We cand use SIMD.jl to write a faster 3x3 matrix multiplication:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;function matmul3x3(a::SMatrix, b::SMatrix)
+    D1 = a.data; D2 = b.data
+    # Extract data from matrix into SIMD.jl Vec
+    SV11 = Vec((D1[1], D1[2], D1[3]))
+    SV12 = Vec((D1[4], D1[5], D1[6]))
+    SV13 = Vec((D1[7], D1[8], D1[9]))
+
+    # Form the columns of the resulting matrix
+    r1 = muladd(SV13, D2[3], muladd(SV12, D2[2], SV11 * D2[1]))
+    r2 = muladd(SV13, D2[6], muladd(SV12, D2[5], SV11 * D2[4]))
+    r3 = muladd(SV13, D2[9], muladd(SV12, D2[8], SV11 * D2[7]))
+
+    return SMatrix{3,3}((r1[1], r1[2], r1[3],
+                         r2[1], r2[2], r2[3],
+                         r3[1], r3[2], r3[3]))
+end
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Let&amp;rsquo;s compare this new version to the default the 3x3 version:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;julia&amp;gt; s = Ref(rand(SMatrix{n,n}))
+
+julia&amp;gt; @btime $(s)[] * $(s)[];
+  10.281 ns (0 allocations: 0 bytes)
+
+julia&amp;gt; @btime matmul3x3($(s)[], $(s)[]);
+  4.392 ns (0 allocations: 0 bytes)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;A guite significant improvement! The code for &lt;code&gt;matmul3x3&lt;/code&gt; could, of course, be generalized to work for more sizes, perhaps using a &lt;code&gt;@generated&lt;/code&gt; function.&lt;/p&gt;
+
+&lt;h2 id=&#34;using-intrinsics&#34;&gt;Using intrinsics&lt;/h2&gt;
+
+&lt;p&gt;All we have done so far has been architecture independent.
+If the CPU only supports an old version of SIMD or perhaps doesn&amp;rsquo;t support SIMD at all, LLVM will just compile the code
+using the latest features that are available, falling back to scalar instructions if needed.
+However, in some cases, we really do want to use a specific instruction in a certain instruction set supported by the CPU.
+The idea for writing this blog post was from reading about
+a new hashing library called &lt;a href=&#34;https://github.com/cmuratori/meow_hash&#34; target=&#34;_blank&#34;&gt;&amp;ldquo;meowhash&amp;rdquo;&lt;/a&gt; was released.
+It uses AES decryption which processors now has built-in instructions to perform.
+Looking in the &lt;a href=&#34;https://github.com/cmuratori/meow_hash/blob/7a871d7edf4405c2ee361d1401a1eb395926fcca/meow_intrinsics.h#L93&#34; target=&#34;_blank&#34;&gt;source code&lt;/a&gt;
+we can see the macro:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-cpp&#34;&gt;#define Meow128_AESDEC(Prior, Xor) _mm_aesdec_si128((Prior), (Xor))
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;In the &lt;a href=&#34;https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_aesdec_si128&amp;amp;expand=221&#34; target=&#34;_blank&#34;&gt;Intel Intrinsics Guide&lt;/a&gt;
+this intrinsic is described as&lt;/p&gt;
+
+&lt;blockquote&gt;
+&lt;p&gt;Perform one round of an AES decryption flow on data (state) in a using the round key in &lt;code&gt;RoundKey&lt;/code&gt;, and store the result in &lt;code&gt;dst&lt;/code&gt;.&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;If we wanted to port meow-hash to Julia we would need to call this intrinsic in Julia, so how should we do that?&lt;/p&gt;
+
+&lt;p&gt;Firstly, Julia allows calling LLVM intrinsics through &lt;code&gt;ccall&lt;/code&gt;.
+We can for example call the &lt;code&gt;pow&lt;/code&gt; intrinsic for two &lt;code&gt;Float64&lt;/code&gt; as:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;julia&amp;gt; llvm_pow(a, b) = ccall(&amp;quot;llvm.pow.f64&amp;quot;, llvmcall, Float64, (Float64, Float64), a, b);
+
+julia&amp;gt; llvm_pow(2.0, 3.0)
+8.0
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;So, in order to call our AES decryption instruction, we need to know the corresponding LLVM intrinsic to &lt;code&gt;_mm_aesdec_si128&lt;/code&gt;. Since Julia itself doesn&amp;rsquo;t provide us
+with a way to get the intrinsic,
+we need to ask a compiler that does. Fortunately, we can just ask Clang to emit the corresponding LLVM for us.
+Using the &lt;a href=&#34;https://godbolt.org/z/vBTDVy&#34; target=&#34;_blank&#34;&gt;Godbolt compiler webtool&lt;/a&gt; makes this very easy.
+In the link to Godbolt we can see the following (slightly cleaned up):&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;define &amp;lt;2 x i64&amp;gt; @_Z6aesdecDv2_xS_(&amp;lt;2 x i64&amp;gt;, &amp;lt;2 x i64&amp;gt;) local_unnamed_addr #0 !dbg !262 {
+  %3 = call &amp;lt;2 x i64&amp;gt; @llvm.x86.aesni.aesdec(&amp;lt;2 x i64&amp;gt; %0, &amp;lt;2 x i64&amp;gt; %1) #3, !dbg !270
+  ret &amp;lt;2 x i64&amp;gt; %3, !dbg !271
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;So the intrinsic is called &lt;code&gt;x86.aesni.aesdec&lt;/code&gt;. Now, we just need to know how to pass in the argument types which are
+&lt;code&gt;&amp;lt;2 x i64&amp;gt;&lt;/code&gt;. A normal Julia tuple of integers will not do because it gets passed to LLVM as an &lt;a href=&#34;https://llvm.org/docs/LangRef.html#array-type&#34; target=&#34;_blank&#34;&gt;&lt;code&gt;array&lt;/code&gt;&lt;/a&gt;
+and not a &lt;code&gt;vector&lt;/code&gt;
+Instead, we need to send in a tuple with special elements of the type &lt;a href=&#34;https://docs.julialang.org/en/v1/base/simd-types/&#34; target=&#34;_blank&#34;&gt;&lt;code&gt;VecElement&lt;/code&gt;&lt;/a&gt;.
+Julia treats a tuple of &lt;code&gt;VecElement&lt;/code&gt;s special and will pass it to LLVM as a &lt;code&gt;vector&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;All that is now left is to define some convenience typealias, create our inputs and call the intrinsic:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;julia&amp;gt; const __m128i = NTuple{2, VecElement{Int64}};
+
+julia&amp;gt; aesdec(a, roundkey) = ccall(&amp;quot;llvm.x86.aesni.aesdec&amp;quot;, llvmcall, __m128i, (__m128i, __m128i), a, roundkey);
+
+julia&amp;gt; aesdec(__m128i((213132, 13131)), __m128i((31231, 43213)))
+(VecElement{Int64}(-1627618977772868053), VecElement{Int64}(999044532936195731))
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;So now, we are in a position to port Meow Hash to Julia!&lt;/p&gt;
+
+&lt;p&gt;It should be stated that intrinsics should only be used as a last resort. It will lead to your code being less portable
+and harder to maintain.&lt;/p&gt;
+
+&lt;h2 id=&#34;conclusion&#34;&gt;Conclusion&lt;/h2&gt;
+
+&lt;p&gt;There are many ways of doing SIMD in Julia. From letting the compiler to do the the job to using a SIMD library, and finally
+getting our hands dirty and use the intrinsics. Which way is best will depend on your application but hopefully, this helped a bit
+with showing what options are available.&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Julia has an issue...</title>
+      <link>http://kristofferc.github.io/post/julia_issue/</link>
+      <pubDate>Sun, 28 May 2017 15:00:00 +0000</pubDate>
+      
+      <guid>http://kristofferc.github.io/post/julia_issue/</guid>
+      <description>
+
+&lt;p&gt;As most of us in the &lt;a href=&#34;https://julialang.org/&#34; target=&#34;_blank&#34;&gt;Julia&lt;/a&gt; community know, Julia has an issue.
+In fact, looking at the &lt;a href=&#34;https://github.com/JuliaLang/julia/&#34; target=&#34;_blank&#34;&gt;Julia repository&lt;/a&gt; we see that
+there are (at time of writing) 11865 issues, where 1872 are open and 9993 are closed.
+An interesting question to ask is:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;How has the ratio between open and closed issues varied over the development of Julia? And how about for pull requests (PRs)?&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;In this post, the aim is to answer the question above using the data that can be scraped from the GitHub repo.&lt;/p&gt;
+
+&lt;h2 id=&#34;getting-the-data&#34;&gt;Getting the data&lt;/h2&gt;
+
+&lt;p&gt;A large amount of data for a repository hosted on GitHub can be found via the &lt;a href=&#34;https://developer.github.com/v3/&#34; target=&#34;_blank&#34;&gt;GitHub API&lt;/a&gt;.
+The &lt;a href=&#34;https://github.com/JuliaWeb/GitHub.jl&#34; target=&#34;_blank&#34;&gt;&lt;em&gt;GitHub.jl&lt;/em&gt;&lt;/a&gt; package provides a convenient
+interface to communicate with this API from Julia.&lt;/p&gt;
+
+&lt;p&gt;Getting the data for the issues (and PRs) is as simple as:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;import GitHub
+myauth = GitHub.authenticate(ENV[&amp;quot;GITHUB_AUTH&amp;quot;])    
+repo = GitHub.repo(&amp;quot;JuliaLang/julia&amp;quot;)
+myparams = Dict(&amp;quot;state&amp;quot; =&amp;gt; &amp;quot;all&amp;quot;, &amp;quot;per_page&amp;quot; =&amp;gt; 100, &amp;quot;page&amp;quot; =&amp;gt; 1);
+issues, page_data = GitHub.issues(repo; params = myparams, auth = myauth)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;where I have created a &amp;ldquo;GitHub access token&amp;rdquo; and saved it in the environment variable &lt;code&gt;GITHUB_AUTH&lt;/code&gt;. Note here that the function name &lt;code&gt;GitHub.issues&lt;/code&gt; is a bit of a misnomer.
+What is returned is actually both issues and PRs.
+The variable &lt;code&gt;issues&lt;/code&gt; now contains a &lt;code&gt;Vector&lt;/code&gt; of all the issues and PRs made to the Julia repo.
+Each element in the vector is an &lt;code&gt;Issue&lt;/code&gt;, which is a &lt;code&gt;struct&lt;/code&gt; containing fields
+corresponding to the keys of the returned JSON from the GitHub REST API.
+In order to not have to rescrape the data every time Julia is started, it would be nice to
+store it to disk. The standard way of storing Julia data is by using the &lt;a href=&#34;https://github.com/JuliaIO/JLD.jl&#34; target=&#34;_blank&#34;&gt;*JLD.jl package&lt;/a&gt;.
+Unfortunately, &lt;em&gt;JLD.jl&lt;/em&gt; has some problems handling &lt;code&gt;Nullable&lt;/code&gt;&amp;rsquo;s (see &lt;a href=&#34;https://github.com/JuliaIO/JLD.jl/issues/47&#34; target=&#34;_blank&#34;&gt;this issue&lt;/a&gt;).
+However, there is an unregistered package called &lt;a href=&#34;https://github.com/simonster/JLD2.jl&#34; target=&#34;_blank&#34;&gt;&lt;em&gt;JLD2.jl&lt;/em&gt;&lt;/a&gt;
+that does support &lt;code&gt;Nullable&lt;/code&gt;&amp;rsquo;s. The code below uses &lt;em&gt;JLD2&lt;/em&gt; to save the issues to a &lt;code&gt;.jld&lt;/code&gt; file
+and then reload them again:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;using JLD2
+
+function save_issues(issues)
+    f = jldopen(&amp;quot;issues.jld&amp;quot;, &amp;quot;w&amp;quot;)
+    write(f, &amp;quot;issues&amp;quot;, issues)
+    close(f)
+end
+
+function load_issues()
+    f = jldopen(&amp;quot;issues.jld&amp;quot;, &amp;quot;r&amp;quot;)
+    issues = read(f, &amp;quot;issues&amp;quot;)
+    close(f)
+    return issues
+end
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;I put up the resulting &lt;code&gt;.jld&lt;/code&gt; file &lt;a href=&#34;http://KristofferC.github.io/issues.zip&#34;&gt;here&lt;/a&gt; if you don&amp;rsquo;t feel like doing the scraping yourself.&lt;/p&gt;
+
+&lt;h2 id=&#34;digression-a-datevector&#34;&gt;Digression: a &lt;code&gt;DateVector&lt;/code&gt;&lt;/h2&gt;
+
+&lt;p&gt;In this post we will deal with &lt;code&gt;Vector&lt;/code&gt;&amp;rsquo;s that are naturally indexed by
+&lt;code&gt;Date&lt;/code&gt;&amp;rsquo;s instead of standard integers starting at 1. Therefore, using the powerful
+&lt;a href=&#34;https://docs.julialang.org/en/release-0.5/manual/interfaces/#indexing&#34; target=&#34;_blank&#34;&gt;&lt;code&gt;AbstractVector&lt;/code&gt; interface&lt;/a&gt;
+we easily create a &lt;code&gt;Vector&lt;/code&gt; that can be indexed with single &lt;code&gt;Date&lt;/code&gt;&amp;rsquo;s ranges consisting of &lt;code&gt;Date&lt;/code&gt;&amp;rsquo;s etc.&lt;/p&gt;
+
+&lt;p&gt;The implementation below should be fairly self explanatory. We create the &lt;code&gt;DateVector&lt;/code&gt; struct
+wrapping a &lt;code&gt;Vector&lt;/code&gt; and two &lt;code&gt;Date&lt;/code&gt;&amp;rsquo;s (the start and end date) and define a minimum amount of methods needed.
+&lt;code&gt;Vector&lt;/code&gt;&amp;rsquo;s with non conventional indices are still quite new in Julia so not everything work
+perfectly with them. Here, we just implement the functionality needed
+to set and retrieve data using indexing with &lt;code&gt;Date&lt;/code&gt;s.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;struct DateVector{T} &amp;lt;: AbstractVector{T}
+    v::Vector{T}
+    startdate::Date
+    enddate::Date
+
+    function DateVector(v::Vector{T}, startdate::Date, enddate::Date) where T
+        len = (enddate - startdate) ÷ Dates.Day(1) + 1
+        if length(v) != len
+            throw(ArgumentError(&amp;quot;length of vector v $(length(v)) not equal to date range $len&amp;quot;))
+        end
+        new{T}(v, startdate, enddate)
+    end
+end
+
+Base.endof(dv::DateVector) = dv.enddate
+Base.indices(dv::DateVector) = (dv.startdate:dv.enddate,)
+Base.getindex(dv::DateVector, date::Date) = dv.v[(date - dv.startdate) ÷ Dates.Day(1) + 1]
+Base.setindex!(dv::DateVector, v, date::Date) = dv.v[(date - dv.startdate) ÷ Dates.Day(1) + 1] = v
+Base.checkindex(::Type{Bool}, d::Range{Date}, v::Range{Date}) = length(v) == 0 || (first(v) in d &amp;amp;&amp;amp; last(v) in d)
+Base.Array(dv::DateVector) = dv.v
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;The &lt;code&gt;DateVector&lt;/code&gt; can now be seen in action by for example indexing into it
+with a &lt;code&gt;Range&lt;/code&gt; of &lt;code&gt;Date&lt;/code&gt;&amp;rsquo;s:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;julia&amp;gt; v = rand(10);
+
+julia&amp;gt; dv = DateVector(v, Date(&amp;quot;2015-01-01&amp;quot;), Date(&amp;quot;2015-01-10&amp;quot;));
+
+julia&amp;gt; dv[Date(&amp;quot;2015-01-02&amp;quot;):Date(&amp;quot;2015-01-05&amp;quot;)]
+4-element Array{Float64,1}:
+ 0.299136
+ 0.898991
+ 0.0626245
+ 0.585839
+
+julia&amp;gt; v[2:5]
+4-element Array{Float64,1}:
+ 0.299136
+ 0.898991
+ 0.0626245
+ 0.585839
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h2 id=&#34;total-number-of-opened-and-closed-issues-prs-over-time&#34;&gt;Total number of opened and closed issues / PRs over time&lt;/h2&gt;
+
+&lt;p&gt;For a given issue we can check the time it was created, what state it is in (open / closed),
+what time it was eventually closed and if it is, in fact, a pull request and not an issue:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;julia&amp;gt; get(issues[1].created_at)
+2017-05-23T18:09:45
+
+julia&amp;gt; get(issues[1].state)
+&amp;quot;open&amp;quot;
+
+julia&amp;gt; isnull(issues[1].closed_at)
+true
+
+julia&amp;gt; isnull(issues[1].pull_request) # pull_request is null so this is an issue
+true
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;It is now quite easy to write a function that takes an issue and returns two &lt;code&gt;Date&lt;/code&gt;-intervals, the first
+for when the issue was opened, and the second for when it was closed up until today.
+If the issue is still open, we make sure to return an empty interval for the closed period.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;function open_closed_range(issue)
+    opened = Date(get(issue.created_at))
+    if get(issue.state) == &amp;quot;closed&amp;quot;
+        closed = Date(get(issue.closed_at))
+    else
+        closed = Date(now())
+    end
+    return opened:closed, (closed + Dates.Day(1)):Date(now())
+end
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;As an example, we can test this function on an issue:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;julia&amp;gt; open_closed_range(issues[200])
+(2017-05-13:1 day:2017-05-14, 2017-05-15:1 day:2017-05-29)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;So, here we see that the issue was opened between 2017-05-13 and 2017-05-14 (and then got closed).
+Now, we can simply create two &lt;code&gt;DateVector&lt;/code&gt;&amp;rsquo;s, one that will contain the total number of opened
+issues and the second the total number of closed issues / PRs for a given date&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;function count_closed_opened(PRs::Bool, issues)
+    min_date = Date(get(minimum(issue.created_at for issue in issues)))
+    days_since_min_date = (Date(now()) - min_date) ÷ Dates.Day(1) + 1
+    closed_counter = DateVector(zeros(Int, days_since_min_date), min_date, Date(now()))
+    open_counter = DateVector(zeros(Int, days_since_min_date), min_date, Date(now()))
+
+    for issue in filter(x -&amp;gt; !isnull(x.pull_request) == PRs, issues)
+        open_range, closed_range = open_closed_range(issue)
+        closed_counter[closed_range] += 1
+        open_counter[open_range] += 1
+    end
+
+    return open_counter, closed_counter
+end
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;For a given date, the number of opened and closed issues are now readily available:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;julia&amp;gt; opened, closed = count_closed_opened(false, issues);
+
+julia&amp;gt; opened[Date(&amp;quot;2016-01-1&amp;quot;)]
+288
+
+julia&amp;gt; closed[Date(&amp;quot;2016-01-1&amp;quot;)]
+5713
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;We could plot these now using one of our favorite plotting packages. I am personally a LaTeX fan and one of the popular
+plotting packages for LaTeX is pgfplots. &lt;a href=&#34;https://github.com/KristofferC/PGFPlotsX&#34; target=&#34;_blank&#34;&gt;&lt;em&gt;PGFPlotsX.jl&lt;/em&gt;&lt;/a&gt; is a Julia package that makes
+it quite easy to interface with pgfplots so this is what I used here. The total number of open and
+closed issues for different dates is shown below.&lt;/p&gt;
+
+
+&lt;figure &gt;
+    
+        &lt;img src=&#34;http://KristofferC.github.io/img/open_close.png&#34; /&gt;
+    
+    
+&lt;/figure&gt;
+
+
+&lt;p&gt;We can see that in the early development of Julia, PRs was not really used.
+Also, the number of closed issues and PRs seem to grow at approximately the same rate.
+A noticeable difference is in the number of &lt;em&gt;opened&lt;/em&gt; issues and PRs. Open PRs accumulate
+significantly slower than the number of open issues. This is likely because an open PR
+become stale quite quickly while issues can take a long time to fix, or does not really have
+a clear actionable purpose.&lt;/p&gt;
+
+&lt;p&gt;Let&amp;rsquo;s plot the ratio between open and closed issues / PRs:&lt;/p&gt;
+
+
+&lt;figure &gt;
+    
+        &lt;img src=&#34;http://KristofferC.github.io/img/ratio.png&#34; /&gt;
+    
+    
+&lt;/figure&gt;
+
+
+&lt;p&gt;To reduce some of the noise, I started the plot at 2013-06-01. The ratio between open to closed issues seems to slowly increase while for PRs, the number have stabilized at around 0.05.&lt;/p&gt;
+
+&lt;h2 id=&#34;conclusions&#34;&gt;Conclusions&lt;/h2&gt;
+
+&lt;p&gt;Using the GitHub API it is quite easy to do some data anlysis on a repo.
+It is hard to say how much actual usefulness can be extracted from the data here
+but sometimes it is fun to just hack on data.
+Possible future work could be to do the same analysis here but for other programming language repos.
+Right now, looking at e.g. the &lt;a href=&#34;https://github.com/rust-lang/rust&#34; target=&#34;_blank&#34;&gt;Rust repo&lt;/a&gt; they have an open to closed PR ratio of 63 / 21200 ≈ 0.003 which is 20 times lower than Julia. Does this mean that the Julia community need to be better at reviewing PRs to make sure they eventually get merged / closed? Or is the barrier to open a PR to Rust higher so that only PRs with high success of merging gets opened?&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>What identifier is the most common in Julia? The answer might surprise you!</title>
+      <link>http://kristofferc.github.io/post/tokenize/</link>
+      <pubDate>Sun, 26 Feb 2017 15:00:00 +0000</pubDate>
+      
+      <guid>http://kristofferc.github.io/post/tokenize/</guid>
+      <description>
+
+&lt;p&gt;&lt;a href=&#34;https://github.com/KristofferC/Tokenize.jl&#34; target=&#34;_blank&#34;&gt;&lt;em&gt;Tokenize&lt;/em&gt;&lt;/a&gt; is a Julia package to perform lexical analysis of Julia source code.
+Lexing is the process of transforming raw source code (represented as normal text) into a sequence of &lt;em&gt;tokens&lt;/em&gt; which is
+a string with an associated meaning. &amp;ldquo;Meaning&amp;rdquo; could here be if the string represent an operator, a keyword, a comment etc.&lt;/p&gt;
+
+&lt;p&gt;The example below shows lexing (or tokenization) of some simple code.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-julia&#34;&gt;julia&amp;gt; using Tokenize
+
+julia&amp;gt; collect(tokenize(&amp;quot;&amp;quot;&amp;quot;
+       100
+       &amp;quot;this is a string&amp;quot;
+       &#39;a&#39;
+       type
+       foo
+       *
+       &amp;quot;&amp;quot;&amp;quot;))
+13-element Array{Tokenize.Tokens.Token,1}:
+ 1,1-1,3          INTEGER        &amp;quot;100&amp;quot;
+ 1,4-2,0          WHITESPACE     &amp;quot;\n&amp;quot;
+ 2,1-2,18         STRING         &amp;quot;\&amp;quot;this is a string\&amp;quot;&amp;quot;
+ 2,19-3,0         WHITESPACE     &amp;quot;\n&amp;quot;
+ 3,1-3,3          CHAR           &amp;quot;&#39;a&#39;&amp;quot;
+ 3,4-4,0          WHITESPACE     &amp;quot;\n&amp;quot;
+ 4,1-4,4          KEYWORD        &amp;quot;type&amp;quot;
+ 4,5-5,0          WHITESPACE     &amp;quot;\n&amp;quot;
+ 5,1-5,3          IDENTIFIER     &amp;quot;foo&amp;quot;
+ 5,4-6,0          WHITESPACE     &amp;quot;\n&amp;quot;
+ 6,1-6,1          OP             &amp;quot;*&amp;quot;
+ 6,2-7,0          WHITESPACE     &amp;quot;\n&amp;quot;
+ 7,1-7,0          ENDMARKER      &amp;quot;&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;The displayed array containing the tokens has three columns. The first column shows the location where the string of the token starts and ends,
+which is represented as the line number (row) and at how many characters into the line (columns) the token starts / ends.
+The second column shows the type (&lt;em&gt;kind&lt;/em&gt;) of token and, finally, the right column shows the string the token contains.&lt;/p&gt;
+
+&lt;p&gt;One of the different token kinds is the &lt;em&gt;identifier&lt;/em&gt;. These are names that refer to different entities in the code.
+This includes variables, types, functions etc. The name of the identifiers are chosen by the programmer,
+in contrast to keywords which are chosen by the developers of the language.
+Some questions I thought interesting are:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;What is the most common identifier in the Julia Base code (the code making up the standard library). Has it changed from 0.5 to 0.6?&lt;/li&gt;
+&lt;li&gt;How about packages? Is the source code there significantly different from the code in Julia Base in terms of the identifiers used?&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;The plan is to use &lt;em&gt;Tokenize&lt;/em&gt; to lex both Julia Base and a bunch of packages, count the number of occurrences of
+each identifier and then summarize this as a top 10 list.&lt;/p&gt;
+
+&lt;h2 id=&#34;a-julia-source-code-identifier-counter&#34;&gt;A Julia source code identifier counter&lt;/h2&gt;
+
+&lt;p&gt;First, let&amp;rsquo;s create a simple counter type to keep track of how many times each identifier occur.
+This is a just a wrapper around a dictionary with a default value of &lt;code&gt;0&lt;/code&gt; and a
+&lt;code&gt;count!&lt;/code&gt; method that increments the counter for the supplied key:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-julia&#34;&gt;immutable Counter{T}
+    d::Dict{T, Int}
+end
+Counter{T}(::Type{T})= Counter(Dict{T, Int}())
+
+Base.getindex{T}(c::Counter{T}, v::T) = get(c.d, v, 0)
+getdictionary(c::Counter) = c.d
+count!{T}(c::Counter{T}, v::T) = haskey(c.d, v) ? c.d[v] += 1 : c.d[v] = 1
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;A short example of the &lt;code&gt;Counter&lt;/code&gt; type in action is showed below.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-julia&#34;&gt;julia&amp;gt; c = Counter(String)
+Counter{String}(Dict{String,Int64}())
+
+julia&amp;gt; c[&amp;quot;foo&amp;quot;]
+0
+
+julia&amp;gt; count!(c, &amp;quot;foo&amp;quot;); count!(c, &amp;quot;foo&amp;quot;);
+
+julia&amp;gt; c[&amp;quot;foo&amp;quot;]
+2
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Now, we need a function that tokenizes a file and counts the number of identifiers in it.
+The code for such a function is shown below and a short explanation follows:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-julia&#34;&gt;function count_tokentypes!(counter, filepath, tokentype)
+    f = open(filepath, &amp;quot;r&amp;quot;)
+    for token in tokenize(f)
+        if Tokens.kind(token) == tokentype
+            count!(counter, untokenize(token))
+        end
+    end
+    return counter
+end
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;This opens the file at the path &lt;code&gt;filepath&lt;/code&gt;, loops over the tokens, and if the kind of token is the &lt;code&gt;tokentype&lt;/code&gt;
+the &lt;code&gt;counter&lt;/code&gt; is incremented with the string of the token (extracted with &lt;code&gt;untokenize&lt;/code&gt;) as the key.
+In &lt;em&gt;Tokenize&lt;/em&gt; each type of token is represented by an enum, and the one corresponding to identifiers is named
+&lt;code&gt;Tokens.IDENTIFIER&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;As an example, we could run the function on a short file in base (&lt;code&gt;nofloat_hashing.jl&lt;/code&gt;):&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-julia&#34;&gt;julia&amp;gt; BASEDIR =  joinpath(JULIA_HOME, Base.DATAROOTDIR, &amp;quot;julia&amp;quot;, &amp;quot;base&amp;quot;)
+
+julia&amp;gt; filepath = joinpath(BASEDIR, &amp;quot;nofloat_hashing.jl&amp;quot;);
+
+julia&amp;gt; c = Counter(String);
+
+julia&amp;gt; count_tokentypes!(c, filepath, Tokens.IDENTIFIER)
+Counter{String}(Dict(&amp;quot;b&amp;quot;=&amp;gt;2,&amp;quot;x&amp;quot;=&amp;gt;8,&amp;quot;a&amp;quot;=&amp;gt;2,&amp;quot;h&amp;quot;=&amp;gt;8,&amp;quot;UInt32&amp;quot;=&amp;gt;1,&amp;quot;UInt16&amp;quot;=&amp;gt;1,&amp;quot;hx&amp;quot;=&amp;gt;3,&amp;quot;abs&amp;quot;=&amp;gt;1,&amp;quot;Int8&amp;quot;=&amp;gt;1,&amp;quot;Int16&amp;quot;=&amp;gt;1…))
+
+julia&amp;gt; c[&amp;quot;h&amp;quot;]
+8
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;We see here that there are 8 occurrences of the identifier &lt;code&gt;h&lt;/code&gt; in the file.&lt;/p&gt;
+
+&lt;p&gt;The next step is to apply the &lt;code&gt;count_tokentypes&lt;/code&gt; function to &lt;em&gt;all&lt;/em&gt; the files in the base directory.
+To that end, we create the &lt;code&gt;applytofolder&lt;/code&gt; function:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-julia&#34;&gt;function applytofolder(path, f)
+    for (root, dirs, files) in walkdir(path)
+        for file in files
+            f(joinpath(root, file))
+        end
+    end
+end
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;It takes a &lt;code&gt;path&lt;/code&gt; to a folder and applies the function &lt;code&gt;f&lt;/code&gt; on each file in that path.
+The &lt;code&gt;walkdir&lt;/code&gt; function works recursively so each file will be visited this way.&lt;/p&gt;
+
+&lt;p&gt;Finally, we create a &lt;code&gt;Counter&lt;/code&gt; and call the previously created &lt;code&gt;count_tokentypes&lt;/code&gt; on all files
+that end with &lt;code&gt;&amp;quot;.jl&amp;quot;&lt;/code&gt; using the &lt;code&gt;applytofolder&lt;/code&gt; function:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-julia&#34;&gt;julia&amp;gt; BASEDIR = joinpath(JULIA_HOME, Base.DATAROOTDIR, &amp;quot;julia&amp;quot;, &amp;quot;base&amp;quot;)
+
+julia&amp;gt; c = Counter(String)
+
+julia&amp;gt; applytofolder(BASEDIR,
+                     function(file)
+                         if endswith(file, &amp;quot;.jl&amp;quot;)
+                             count_tokentypes!(c, file, Tokens.IDENTIFIER)
+                         end
+                     end)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;The counter &lt;code&gt;c&lt;/code&gt; now contains the count of all identifiers in the base folder:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-julia&#34;&gt;julia&amp;gt; c[&amp;quot;_uv_hook_close&amp;quot;]
+12
+
+julia&amp;gt; c[&amp;quot;x&amp;quot;]
+7643
+
+julia&amp;gt; c[&amp;quot;str&amp;quot;]
+230
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h2 id=&#34;analysis&#34;&gt;Analysis&lt;/h2&gt;
+
+&lt;p&gt;We are interested in the most common identifiers so we create a function that
+extracts the &lt;code&gt;n&lt;/code&gt; most common identifiers as two vectors.
+One with the identifiers and one with the counts:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-julia&#34;&gt;function getntop(c::Counter, n)
+    vec = Tuple{String, Int}[]
+    for (k, v) in getdictionary(c)
+        push!(vec, (k, v))
+    end
+    sort!(vec, by = x -&amp;gt; x[2], rev = true)
+    vec_trunc = vec[1:n-1]
+    identifiers = [v[1] for v in vec_trunc]
+    counts      = [v[2] for v in vec_trunc]
+    return identifiers, counts
+end
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;To visualize this we use the excellent plotting package
+ &lt;a href=&#34;https://github.com/Evizero/UnicodePlots.jl&#34; target=&#34;_blank&#34;&gt;&lt;em&gt;UnicodePlots&lt;/em&gt;&lt;/a&gt;:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-julia&#34;&gt;julia&amp;gt; using UnicodePlots
+
+julia&amp;gt; identifiers, counts = getntop(c, 10)
+
+julia&amp;gt; barplot(identifiers, counts, title = &amp;quot;Base identifiers&amp;quot;)
+                   Base identifiers
+       ┌────────────────────────────────────────┐
+     x │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 7643 │
+     T │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 7202   │
+     A │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 7001    │
+     i │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 5119            │
+   Ptr │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 4239                │
+     s │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 4128                 │
+     n │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 3650                   │
+     B │▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 3143                     │
+    io │▪▪▪▪▪▪▪▪▪▪▪▪ 2714                       │
+       └────────────────────────────────────────┘
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;So there we have it, &lt;code&gt;x&lt;/code&gt; is the winner, closely followed by &lt;code&gt;T&lt;/code&gt; and &lt;code&gt;A&lt;/code&gt;.
+This is perhaps not very surprising; &lt;code&gt;x&lt;/code&gt; is a very common variable name,
+&lt;code&gt;T&lt;/code&gt; is used a lot in parametric functions and &lt;code&gt;A&lt;/code&gt; is used a lot in the
+Linear Algebra code base which is quite large.&lt;/p&gt;
+
+&lt;h3 id=&#34;difference-vs-0-6&#34;&gt;Difference vs. 0.6&lt;/h3&gt;
+
+&lt;p&gt;The plot below shows the same experiment repeated on the 0.6 code base:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-julia&#34;&gt;               Base identifiers 0.6
+       ┌────────────────────────────────────────┐ 
+     x │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 7718 │ 
+     A │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 7313   │ 
+     T │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 6932    │ 
+     i │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 5242            │ 
+   Ptr │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 4147                 │ 
+     s │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 4093                 │ 
+     n │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 3650                   │ 
+     B │▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 3174                     │ 
+    io │▪▪▪▪▪▪▪▪▪▪▪▪▪ 2933                      │ 
+       └────────────────────────────────────────┘ 
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Most of the counts are relatively similar between 0.5 and 0.6 with the exception that &lt;code&gt;A&lt;/code&gt; overtook &lt;code&gt;T&lt;/code&gt; for the second place.
+In fact, the number of &lt;code&gt;T&lt;/code&gt; identifers have decreased with almost 300 counts!
+What could have caused this?
+The answer is a new syntactic sugar feature available in Julia 0.6 which was implemented by Steven G. Johnson in &lt;a href=&#34;https://github.com/JuliaLang/julia/pull/20414&#34; target=&#34;_blank&#34;&gt;PR #20414&lt;/a&gt; .
+This allowed a parametric function with the syntax&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;foo{T &amp;lt;: Real}(Point{T}) = ...
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;to instead be written more tersely as&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;foo(Point{&amp;lt;:Real})...
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;In &lt;a href=&#34;https://github.com/JuliaLang/julia/pull/20446&#34; target=&#34;_blank&#34;&gt;PR #20446&lt;/a&gt; Pablo Zubieta went through the Julia code base and updated
+many of the function signatures to use this new syntax.
+Since &lt;code&gt;T&lt;/code&gt; is a very common name to use for the parameter, the counts of &lt;code&gt;T&lt;/code&gt; significantly decreased.
+And this is how &lt;code&gt;A&lt;/code&gt; managed to win over &lt;code&gt;T&lt;/code&gt; in 0.6 in the prestigeful &amp;ldquo;most common identifier&amp;rdquo;-competition.&lt;/p&gt;
+
+&lt;h3 id=&#34;julia-packages&#34;&gt;Julia packages.&lt;/h3&gt;
+
+&lt;p&gt;We now perform the same experiment but on the Julia package directory. For me, this includes around 130 packages:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-julia&#34;&gt;julia&amp;gt; length(readdir(Pkg.dir()))
+137
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;The results are:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-julia&#34;&gt;                   Package identifiers
+        ┌────────────────────────────────────────┐ 
+      T │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 15425 │ 
+      x │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 15062  │ 
+   test │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 13624     │ 
+      i │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 9989              │ 
+      d │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 9562               │ 
+      A │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 8280                 │ 
+    RGB │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 8041                  │ 
+      a │▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 7144                    │ 
+      n │▪▪▪▪▪▪▪▪▪▪▪▪▪▪ 6470                     │ 
+        └────────────────────────────────────────┘ 
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;When we counted the Julia base folder we excluded all the files used for unit testing.
+For packages, these files are included and clearly &lt;code&gt;test&lt;/code&gt;, used in the &lt;code&gt;@test&lt;/code&gt; macro, is
+unsurprisingly very common. &lt;code&gt;T&lt;/code&gt;, &lt;code&gt;x&lt;/code&gt; and &lt;code&gt;i&lt;/code&gt; are common in packages and Base but for some reason
+the variable &lt;code&gt;d&lt;/code&gt; is more common in packages than in Base.&lt;/p&gt;
+
+&lt;h2 id=&#34;conclusion&#34;&gt;Conclusion&lt;/h2&gt;
+
+&lt;p&gt;Doing these type of investigations has perhaps little practical use but it is, at least to me, a lot of fun.
+Feel free to tweak the code to find the most common string literal (&lt;code&gt;Tokens.STRING&lt;/code&gt;) or perhaps most common integer (`&lt;code&gt;Tokens.INTEGER&lt;/code&gt;)
+or anything else you can come up with.&lt;/p&gt;
+
+&lt;p&gt;Below is a wordcloud I made with the top 50 identifiers in Julia Base.&lt;/p&gt;
+
+
+&lt;figure &gt;
+    
+        &lt;img src=&#34;http://KristofferC.github.io/img/wordcloud.png&#34; /&gt;
+    
+    
+&lt;/figure&gt;
+
+</description>
+    </item>
+    
+    <item>
+      <title>Case study: Improving performance of a code written in Matlab style</title>
+      <link>http://kristofferc.github.io/post/vectorization_performance_study/</link>
+      <pubDate>Mon, 26 Dec 2016 15:00:00 +0000</pubDate>
+      
+      <guid>http://kristofferc.github.io/post/vectorization_performance_study/</guid>
+      <description>
+
+&lt;h2 id=&#34;introduction&#34;&gt;Introduction&lt;/h2&gt;
+
+&lt;p&gt;A few weeks ago, someone asked on the &lt;a href=&#34;https://discourse.julialang.org/t/elementwise-array-operations-and-performance/754&#34; target=&#34;_blank&#34;&gt;Julia Discourse forum&lt;/a&gt; for assistance how to make their code a bit faster.&lt;/p&gt;
+
+&lt;p&gt;The original code posted was (with a few minor modifications)&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;function myImg(pts::Integer)
+    # rotation of ellipse
+    aEll = 35.0/180.0*pi
+    axes = [1/6,1/25]
+    values = collect(linspace(-0.5,0.5,pts))
+
+    # meshes
+    gridX = [i for i in values, j in values]
+    gridY = [j for i in values, j in values]
+
+    # generate ellipse
+    # rotate by alpha
+    Xr = cos(aEll).*gridX - sin(aEll).*gridY
+    Yr = cos(aEll).*gridY + sin(aEll).*gridX
+    img = ((1/axes[1]*Xr.^2 + 1/axes[2]*Yr.^2).&amp;lt;=1).*( 10*pi*Yr);
+    return mod(img-pi,2*pi)+pi
+end
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;I did not spend too much time trying to figure out the purpose of the code but it looks like it is creating some sort of rotated ellipse.
+Plotting a heatmap of the resulting matrix confirms this:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;julia&amp;gt; using Plots
+
+julia&amp;gt; img = myImg(1024)
+
+julia&amp;gt; heatmap(img)
+&lt;/code&gt;&lt;/pre&gt;
+
+
+&lt;figure &gt;
+    
+        &lt;img src=&#34;http://KristofferC.github.io/img/ellipses.png&#34; /&gt;
+    
+    
+&lt;/figure&gt;
+
+
+&lt;h2 id=&#34;analysis&#34;&gt;Analysis&lt;/h2&gt;
+
+&lt;p&gt;To get an estimate of the time and memory allocation it takes to run the function we can use the &lt;code&gt;@time&lt;/code&gt; macro.&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:1&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;
+As to not measure compilation overhead, the function is timed twice (here using Julia v0.5).&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-julia&#34;&gt;julia&amp;gt; @time myImg(1024);
+  0.117500 seconds (845 allocations: 144.179 MB, 50.45% gc time)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;The first thing to do when trying to improve performance of Julia code is to check if there are any type instabilities (see &lt;a href=&#34;http://www.johnmyleswhite.com/notebook/2013/12/06/writing-type-stable-code-in-julia/&#34; target=&#34;_blank&#34;&gt;here&lt;/a&gt; and &lt;a href=&#34;http://docs.julialang.org/en/release-0.5/manual/performance-tips/#measure-performance-with-time-and-pay-attention-to-memory-allocation&#34; target=&#34;_blank&#34;&gt;here&lt;/a&gt; for references) in performance sensitive parts of the code.
+Julia provides a macro called  &lt;code&gt;@code_warntype&lt;/code&gt; which gives colored output where type instabilities are shown in red.
+Running &lt;code&gt;@code_warntype myImg(1024)&lt;/code&gt; shows, however, that this function is perfectly fine from a type stability point of view.&lt;/p&gt;
+
+&lt;p&gt;The &lt;code&gt;@time&lt;/code&gt; output, shows a significant amount of time (~50%) is spent in the garbage collector (GC).
+This indicates that large amounts of memory is being allocated and released and thus needs to be garbage collected.
+The initial goal should thus first be to reduce the amount of memory allocations.&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:2&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:2&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+
+&lt;p&gt;The most significant memory allocations start with the &amp;ldquo;mesh grid&amp;rdquo; type of variables &lt;code&gt;gridX&lt;/code&gt; and &lt;code&gt;gridY&lt;/code&gt; which are created as&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;gridX = [i for i in values, j in values]
+gridY = [j for i in values, j in values]
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Often, creating a mesh grid like this is quite wasteful in terms of memory because we are here storing &lt;code&gt;pts&lt;/code&gt; amount of data in &lt;code&gt;2*pts^2&lt;/code&gt; amount of memory.
+Later, these matrices are used to do operations in an &amp;ldquo;vectorized&amp;rdquo; fashion:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-jl&#34;&gt;Xr = cos(aEll).*gridX - sin(aEll).*gridY
+Yr = cos(aEll).*gridY + sin(aEll).*gridX
+img = ((1/axes[1]*Xr.^2 + 1/axes[2]*Yr.^2).&amp;lt;=1).*( 10*pi*Yr);
+return mod(img-pi,2*pi)+pi
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;This is where the problem with memory allocations sits. For example the command &lt;code&gt;cos(aEll).*gridX&lt;/code&gt; has to allocate a &lt;em&gt;brand new&lt;/em&gt; matrix to store the result in.
+And then again allocate a new matrix for the &lt;code&gt;sin&lt;/code&gt; part. And then a new matrix for the subtraction between the two matrices etc.
+It is evident that there are a lot of new matrices being created here.&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:3&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:3&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;
+Code like this is quite common from users coming from a MATLAB programming background, since for loops have traditionally been quite slow there.
+In addition to the overhead of allocating memory, this also has the effect that the computer is working with &amp;ldquo;cold&amp;rdquo; memory (memory not in cache) a lot.
+For good performance, it is important to try to do as much operations as possible on the data while it is in cache before loading new data.&lt;/p&gt;
+
+&lt;p&gt;The remedy to the memory and cache problem is to attack the problem along a different dimension.
+Instead of building up the full result array by doing small operations array by array, it is built up element by element.&lt;/p&gt;
+
+&lt;p&gt;My proposed rewrite of the function is:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;function myImg2(pts::Integer)
+  # rotation of ellipse
+  aEll = 35.0/180.0*pi
+  axes_inv = [6.0, 25.0]
+  values = collect(linspace(-0.5,0.5,pts))
+
+  img = zeros(Float64, pts, pts)
+  cosa = cos(aEll)
+  sina = sin(aEll)
+  @inbounds @fastmath for j in eachindex(values), i in eachindex(values)
+      Xr = cosa*values[i] - sina*values[j]
+      Yr = cosa*values[j] + sina*values[i]
+      v = (axes_inv[1]*Xr^2 + axes_inv[2]*Yr^2)
+      k = v &amp;lt;= 1 ? 10*pi*Yr : 0.0
+      img[i,j] = mod(k-pi,2*pi)+pi
+    end
+  return img
+end
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;The &amp;ldquo;meshgrid&amp;rdquo; variables &lt;code&gt;gridX&lt;/code&gt; and &lt;code&gt;gridY&lt;/code&gt; are gone and instead, a nested loop completely computes the result for each element and stores it in &lt;code&gt;img[i,j]&lt;/code&gt;.
+Timing the new function results in&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;julia&amp;gt; @time myImg2(1024);
+  0.011171 seconds (9 allocations: 8.008 MB)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;which is a speed up of about 10x and a reduction of memory use by almost 20x without (I would say) making the code much more complicated to read and understand.&lt;/p&gt;
+
+&lt;h2 id=&#34;conclusions&#34;&gt;Conclusions&lt;/h2&gt;
+
+&lt;p&gt;Rewriting code that is written in a &amp;ldquo;vectorized&amp;rdquo; form can sometimes be beneficial if you see that the code is allocating a lot of memory and the time spent garbage collecting is significant.&lt;/p&gt;
+
+&lt;h2 id=&#34;edits&#34;&gt;Edits:&lt;/h2&gt;
+
+&lt;p&gt;Removed a section that suggested taking away &lt;code&gt;collect&lt;/code&gt; from the &lt;code&gt;values&lt;/code&gt; variable. Since we are indexing directly into &lt;code&gt;values&lt;/code&gt; it turns out that using an iterator is slightly slower (10%) than using a &lt;code&gt;Vector&lt;/code&gt;. Thanks to &lt;a href=&#34;https://github.com/SimonDanisch&#34; target=&#34;_blank&#34;&gt;Simon Danisch&lt;/a&gt;&lt;/p&gt;
+&lt;div class=&#34;footnotes&#34;&gt;
+
+&lt;hr /&gt;
+
+&lt;ol&gt;
+&lt;li id=&#34;fn:1&#34;&gt;Instead of using the &lt;code&gt;@time&lt;/code&gt; macro it is often better to use a dedicated benchmark framework like &lt;a href=&#34;https://github.com/JuliaCI/BenchmarkTools.jl&#34; target=&#34;_blank&#34;&gt;BenchmarkTools.jl&lt;/a&gt;. However, the run time of the function is here quite large so the &lt;code&gt;@time&lt;/code&gt; macro is ok to use.
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:1&#34;&gt;&lt;sup&gt;^&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:2&#34;&gt;Typically, it is always good to get in the habit of profiling code before trying to optimize it. &amp;ldquo;Measuring gives you a leg up on experts who don&amp;rsquo;t need to measure&amp;rdquo; &amp;ndash; Walter Bright. Julia has a macro &lt;code&gt;@profile&lt;/code&gt; that together with the package &lt;a href=&#34;https://github.com/timholy/ProfileView.jl&#34; target=&#34;_blank&#34;&gt;ProfileView.jl&lt;/a&gt; gives a flame graph overview of where time is spent. However, when there are glaring performance bottle necks, I typically fix those first before profiling.
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:2&#34;&gt;&lt;sup&gt;^&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:3&#34;&gt;Julia 0.6 comes with a cool feature where chained calls to dotted operators (like &lt;code&gt;.+&lt;/code&gt;) are fused. As an example, in 0.6, the command &lt;code&gt;cos(aEll).*gridX .- sin(aEll).*gridY&lt;/code&gt; would only allocate one array instead of three, as in 0.5.
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:3&#34;&gt;&lt;sup&gt;^&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+</description>
+    </item>
+    
+  </channel>
+</rss>
